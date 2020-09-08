@@ -17,9 +17,12 @@
  *															*
  ************************************************************/
 
-#include "../iptools/core.h"
+#include "image/netpbmImage.h"
+#include "utility/utility.h"
 #include <strings.h>
 #include <string.h>
+#include <cstdlib>
+#include <cstdio>
 
 using namespace std;
 

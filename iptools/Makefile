@@ -1,16 +1,16 @@
 # source files.
-SRC =  image/image.cpp utility/utility.cpp
+SRC =  utility/stringParse.cpp
 
 OBJ = $(SRC:.cpp=.o)
 
 OUT = ../lib/libiptools.a
 
 # include directories
-INCLUDES = -I. -I/usr/local/include -Iimage/  -Iutility/ -I/usr/include/c++/4.2.1 
+INCLUDES = -I. -I/usr/local/include
 
 # C++ compiler flags (-g -O2 -Wall)
 #CCFLAGS = -g3 -ggdb -O0
-CCFLAGS = -O2 -march=native
+CCFLAGS = -std=c++03 -O2 -march=native
 
 # compiler
 CCC = g++
