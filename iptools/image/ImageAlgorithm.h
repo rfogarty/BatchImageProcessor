@@ -1,11 +1,13 @@
-#ifndef UTILITY_H
-#define UTILITY_H
+#pragma once
 
-#include "../image/image.h"
+#include "Image.h"
+#include "ImageAction.h"
 #include <cmath>
 
-namespace utility {
+namespace algorithm {
 
+// TODO: these should be redefined as traits of Image/ImageView types
+// so that they can make sense for various bitdepth formats.
 #define MAXRGB 255
 #define MINRGB 0
 
@@ -54,9 +56,6 @@ void add(const SrcImageT &src, TgtImageT &tgt, int value,
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
  
-   // TODO: this should probably be moved out of here.
-   //tgt.resize(src.rows(), src.cols());
-
    typename SrcImageT::const_iterator spos = src.begin();
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
@@ -89,9 +88,6 @@ void binarize(const SrcImageT &src, TgtImageT &tgt, unsigned threshold,
               // deduction so can't be applied to in parameter directly.                              
               typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   // TODO: this should probably be moved out of here.
-   //tgt.resize(src.rows(), src.cols());
-
    typename SrcImageT::const_iterator spos = src.begin();
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
@@ -113,9 +109,6 @@ void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance
                    // matching function given its arguments. Note, SFINAE techniques are incompatible with 
                    // deduction so can't be applied to in parameter directly.                              
                    typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
-
-   // TODO: this should probably be moved out of here.
-   //tgt.resize(src.rows(), src.cols());
 
    typename SrcImageT::const_iterator spos = src.begin();
    typename SrcImageT::const_iterator send = src.end();
@@ -157,9 +150,6 @@ void binarizeDouble(const SrcImageT &src, TgtImageT &tgt, unsigned thresholdLow,
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   // TODO: this should probably be moved out of here.
-   //tgt.resize(src.rows(), src.cols());
-
    typename SrcImageT::const_iterator spos = src.begin();
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
@@ -172,6 +162,8 @@ void binarizeDouble(const SrcImageT &src, TgtImageT &tgt, unsigned thresholdLow,
 
    }
 }
+
+
 
 
 ///*-----------------------------------------------------------------------**/
@@ -201,7 +193,92 @@ void binarizeDouble(const SrcImageT &src, TgtImageT &tgt, unsigned thresholdLow,
 //   }
 //}
 
-} // namespace utility
 
-#endif
+
+template<typename ImageT>
+class Intensity : public Action<ImageT> {
+public:
+   typedef Intensity<ImageT> ThisT;
+private:
+   int mAmount;
+public:
+   Intensity(int amount) : mAmount(amount) {}
+   virtual ~Intensity() {}
+
+   virtual ActionType type() { return INTENSITY; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+      typename ImageT::ImageViewT tgtview = roi2view(tgt,roi);
+      add(roi2view(src,roi),tgtview,mAmount);
+   }
+};
+
+template<typename ImageT>
+class Binarize : public Action<ImageT> {
+public:
+   typedef Intensity<ImageT> ThisT;
+private:
+   unsigned mThreshold;
+public:
+   Binarize(unsigned threshold) : mThreshold(threshold) {}
+   virtual ~Binarize() {}
+
+   virtual ActionType type() { return BINARIZE; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+      typename ImageT::ImageViewT tgtview = roi2view(tgt,roi);
+      binarize(roi2view(src,roi),tgtview,mThreshold);
+   }
+};
+
+template<typename ImageT>
+class BinarizeDT : public Action<ImageT> {
+public:
+   typedef Action<ImageT> SuperT;
+   typedef Intensity<ImageT> ThisT;
+private:
+   unsigned mThresholdLow;
+   unsigned mThresholdHigh;
+public:
+   BinarizeDT(unsigned thresholdLow,unsigned thresholdHigh) : 
+      mThresholdLow(thresholdLow),
+      mThresholdHigh(thresholdHigh)
+   {}
+
+   virtual ~BinarizeDT() {}
+
+   virtual ActionType type() { return BINARIZE; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+      typename ImageT::ImageViewT tgtview = roi2view(tgt,roi);
+      binarizeDouble(roi2view(src,roi),tgtview,mThresholdLow,mThresholdHigh);
+   }
+};
+
+
+template<typename ImageT>
+class BinarizeColor : public Action<ImageT> {
+public:
+   typedef Action<ImageT> SuperT;
+   typedef Intensity<ImageT> ThisT;
+   typedef typename ImageT::pixel_type pixel_type;
+private:
+   float mThreshold;
+   pixel_type mFromPos;
+public:
+
+   BinarizeColor(float threshold,const pixel_type& fromPos) : mThreshold(0), mFromPos(fromPos) {}
+   virtual ~BinarizeColor() {}
+
+   virtual ActionType type() { return BINARIZE; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+      typename ImageT::ImageViewT tgtview = roi2view(tgt,roi);
+      binarizeColor(roi2view(src,roi),tgtview,mThreshold,mFromPos);
+   }
+};
+
+
+} // namespace algorithm
+
 

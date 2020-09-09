@@ -1,9 +1,9 @@
 #pragma once
 
+#include "cppTools/TemplateMetaprogramming.h"
 #include <cassert>
 #include <iterator>
 #include <vector>
-#include "cppTools/templateMetaprogramming.h"
 
 template<typename ChannelT>
 struct ColorPixel {

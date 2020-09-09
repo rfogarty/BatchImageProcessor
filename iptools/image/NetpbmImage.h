@@ -1,7 +1,7 @@
 #pragma once
 
-#include "image/image.h"
-#include "utility/stringParse.h"
+#include "image/Image.h"
+#include "utility/StringParse.h"
 #include <fstream>
 #include <string>
 

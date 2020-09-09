@@ -1,5 +1,5 @@
 # source files.
-SRC =  utility/stringParse.cpp
+SRC =  utility/StringParse.cpp
 
 OBJ = $(SRC:.cpp=.o)
 

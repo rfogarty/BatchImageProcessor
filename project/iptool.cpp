@@ -17,227 +17,14 @@
  *															*
  ************************************************************/
 
-#include "image/netpbmImage.h"
-#include "utility/utility.h"
+#include "image/NetpbmImage.h"
+#include "image/ImageOperation.h"
+#include "image/ImageAlgorithm.h"
+#include "utility/StringParse.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
-//#include <cstdlib>
-//#include <cstdio>
 
-using namespace std;
-
-#define MAXLEN 256
-
-struct RegionOfInterest {
-   unsigned mRows;
-   unsigned mCols;
-   unsigned mRowBegin;
-   unsigned mColBegin;
-
-   RegionOfInterest(unsigned rows = 0,unsigned cols = 0,
-                    unsigned rowBegin = 0,unsigned colBegin = 0) :
-      mRows(rows),
-      mCols(cols),
-      mRowBegin(rowBegin),
-      mColBegin(colBegin)
-   {}
-};
-
-
-template<typename ImageT>
-typename ImageT::ImageViewT roi2view(ImageT& image,const RegionOfInterest& roi) {
-   return image.view(roi.mRows,roi.mCols,roi.mRowBegin,roi.mColBegin);
-}
-
-template<typename ImageT>
-typename ImageT::ConstImageViewT roi2view(const ImageT& image,const RegionOfInterest& roi) {
-   return image.view(roi.mRows,roi.mCols,roi.mRowBegin,roi.mColBegin);
-}
-
-template<typename ImageViewT>
-RegionOfInterest view2roi(ImageViewT& view) {
-  return RegionOfInterest(view.rows(),view.cols(),view.rowBegin(),view.colBegin()); 
-}
-
-enum ActionOperation {
-   INTENSITY,
-   BINARIZE,
-   BINARIZE_DT,
-   SCALE
-};
-
-
-template<typename ImageT>
-class AbstractAction {
-public:
-   typedef ImageT image_type;
-
-   virtual ~AbstractAction() {}
-
-   virtual ActionOperation op() = 0;
-
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) = 0;
-};
-
-// TODO: these classe, their implementations and 
-// their parsing logic should probably be all collocated
-template<typename ImageT>
-class Intensity : public AbstractAction<ImageT> {
-public:
-   typedef Intensity<ImageT> ThisT;
-private:
-   int mAmount;
-public:
-   Intensity(int amount) : mAmount(amount) {}
-   virtual ~Intensity() {}
-
-   virtual ActionOperation op() { return INTENSITY; }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::ImageViewT tgtview = roi2view(tgt,roi);
-      utility::add(roi2view(src,roi),tgtview,mAmount);
-   }
-};
-
-template<typename ImageT>
-class Binarize : public AbstractAction<ImageT> {
-public:
-   typedef Intensity<ImageT> ThisT;
-private:
-   unsigned mThreshold;
-public:
-   Binarize(unsigned threshold) : mThreshold(threshold) {}
-   virtual ~Binarize() {}
-
-   virtual ActionOperation op() { return BINARIZE; }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::ImageViewT tgtview = roi2view(tgt,roi);
-      utility::binarize(roi2view(src,roi),tgtview,mThreshold);
-   }
-};
-
-template<typename ImageT>
-class BinarizeDT : public AbstractAction<ImageT> {
-public:
-   typedef AbstractAction<ImageT> SuperT;
-   typedef Intensity<ImageT> ThisT;
-private:
-   unsigned mThresholdLow;
-   unsigned mThresholdHigh;
-public:
-   BinarizeDT(unsigned thresholdLow,unsigned thresholdHigh) : 
-      mThresholdLow(thresholdLow),
-      mThresholdHigh(thresholdHigh)
-   {}
-
-   virtual ~BinarizeDT() {}
-
-   virtual ActionOperation op() { return BINARIZE; }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::ImageViewT tgtview = roi2view(tgt,roi);
-      utility::binarizeDouble(roi2view(src,roi),tgtview,mThresholdLow,mThresholdHigh);
-   }
-};
-
-
-template<typename ImageT>
-class BinarizeColor : public AbstractAction<ImageT> {
-public:
-   typedef AbstractAction<ImageT> SuperT;
-   typedef Intensity<ImageT> ThisT;
-   typedef typename ImageT::pixel_type pixel_type;
-private:
-   float mThreshold;
-   pixel_type mFromPos;
-public:
-
-   BinarizeColor(float threshold,const pixel_type& fromPos) : mThreshold(0), mFromPos(fromPos) {}
-   virtual ~BinarizeColor() {}
-
-   virtual ActionOperation op() { return BINARIZE; }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::ImageViewT tgtview = roi2view(tgt,roi);
-      utility::binarizeColor(roi2view(src,roi),tgtview,mThreshold,mFromPos);
-   }
-};
-
-
-
-
-template<typename AbstractActionT,typename ImageT = typename AbstractActionT::image_type>
-class Operation {
-private:
-   //std::string mInputImage;
-   //std::string mOutputImage;
-   AbstractActionT* mAction;
-   typedef std::vector<RegionOfInterest> RegionsT;
-   RegionsT mRegions;
-
-   void operateOnRegions(const ImageT& src,ImageT& tgt) {
-      // If no regions defined, assume operation is to operate
-      // on entire image
-      if(0 == mRegions.size()) {
-         mAction->run(src,tgt,view2roi(src.defaultView()));
-      }
-      // O.w. iterate all of the given regions
-      else {
-         RegionsT::const_iterator pos = mRegions.begin();
-         RegionsT::const_iterator end = mRegions.end();
-         for(;pos != end;++pos) {
-            mAction->run(src,tgt,*pos);
-         }
-      }
-   }
-
-public:
-   Operation(//const std::string& inputfile,
-             //const std::string& outputfile,
-             AbstractActionT* action) : 
-      //mInputImage(inputfile),
-      //mOutputImage(outputfile),
-      mAction(action) {}
-
-   ~Operation() {
-      delete mAction;
-      mAction = 0;
-   }
-
-   void addRegion(const RegionOfInterest& roi) {
-      mRegions.push_back(roi);
-   }
-
-   ImageT run(const ImageT& src) {
-	   ImageT tgt(src);
-      operateOnRegions(src,tgt);
-      return tgt;
-   }
-};
-
-
-class ParseError : public exception {
-private:
-   std::string mMessage;
-public:
-   /** Takes a character string describing the error.  */
-   explicit ParseError(const string& msg) : mMessage(msg) {}
-
-   virtual ~ParseError() throw() {}
-
-   virtual const char* what() const throw() { return mMessage.c_str(); }
-};
-
-
-template<typename ReturnT>
-ReturnT parseWord(std::stringstream& ss) {
-   ReturnT retval;
-   ss >> retval;
-   if(ss.fail()) throw ParseError("Reading string from stream failed");
-   return retval;
-}
 
 template<typename OperationT>
 void parseROIs(OperationT& op,std::stringstream& ss) {
@@ -279,15 +66,17 @@ void parseOperation(const std::string& line) {
    std::string outputfile = parseWord<std::string>(ss);
    std::string operation = parseWord<std::string>(ss);
 
+   using namespace algorithm;
+   
    if(endsWith(inputfile,".pgm")) {
       assert(endsWith(outputfile,".pgm"));
 
       typedef GrayAlphaPixel<unsigned char> PixelT;
       typedef Image<PixelT> ImageT;
-      typedef AbstractAction<ImageT> AbstractActionT;
-      typedef Operation<AbstractActionT> OperationT;
+      typedef Action<ImageT> ActionT;
+      typedef Operation<ActionT> OperationT;
 
-      AbstractActionT* action = 0;
+      ActionT* action = 0;
 
       if(operation == "add") {
          int amount = parseWord<int>(ss);
@@ -318,10 +107,10 @@ void parseOperation(const std::string& line) {
 
       typedef ColorPixel<unsigned char> PixelT;
       typedef Image<PixelT> ImageT;
-      typedef AbstractAction<ImageT> AbstractActionT;
-      typedef Operation<AbstractActionT> OperationT;
+      typedef Action<ImageT> ActionT;
+      typedef Operation<ActionT> OperationT;
 
-      AbstractActionT* action = 0;
+      ActionT* action = 0;
 
       if(operation == "add") {
          int amount = parseWord<int>(ss);

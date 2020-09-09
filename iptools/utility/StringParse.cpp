@@ -1,5 +1,5 @@
 
-#include "stringParse.h"
+#include "StringParse.h"
 
 
 bool endsWith(const std::string& str, const std::string& suffix) {
@@ -32,6 +32,16 @@ bool readNext2Integers(std::istream& ins,unsigned& val1,unsigned& val2) {
 
    return readVal2;
 }
+
+
+ParseError::ParseError(const std::string& msg) : mMessage(msg) {}
+
+ParseError::~ParseError() throw() {}
+
+const char* ParseError::what() const throw() { return mMessage.c_str(); }
+
+
+
 
 // TODO: pretty ure I do not need this, but leaving in for now just in case.
 ///*-----------------------------------------------------------------------**/
