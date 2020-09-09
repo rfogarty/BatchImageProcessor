@@ -137,9 +137,9 @@ void writePPMFile(const std::string& filename,const Image<PixelT>& image) {
    for(;pos != end;++pos) {
       // TODO: note Pixel ChannelT in this type has to be unsigned char
       // At some point may need to have Pixel conversion functions.
-      outfile << pos->namedColors.red;
-      outfile << pos->namedColors.blue;
-      outfile << pos->namedColors.green;
+      outfile << pos->namedColor.red;
+      outfile << pos->namedColor.blue;
+      outfile << pos->namedColor.green;
    }
 
    outfile.close();

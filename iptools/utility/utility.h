@@ -2,6 +2,7 @@
 #define UTILITY_H
 
 #include "../image/image.h"
+#include <cmath>
 
 namespace utility {
 
@@ -19,32 +20,81 @@ inline int checkValue(int value)
 }
 
 /*-----------------------------------------------------------------------**/
-template<typename ImageT>
-void addGrey(const ImageT &src, ImageT &tgt, int value)
-{
-   tgt.resize(src.rows(), src.cols());
 
-   typename ImageT::const_iterator spos = src.begin();
-   typename ImageT::const_iterator send = src.end();
-   typename ImageT::iterator tpos = tgt.begin();
+template<typename SrcImageT,typename TgtImageT>
+void add(const SrcImageT &src, TgtImageT &tgt, int value,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+ 
+   // TODO: this should probably be moved out of here.
+   //tgt.resize(src.rows(), src.cols());
+
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
 
    for(;spos != send;++spos,++tpos) {
       *tpos = *spos;
-      int gray = tpos->namedColor.gray;
+      int gray = static_cast<int>(tpos->namedColor.gray);
       gray += value;
       tpos->namedColor.gray = checkValue(gray);
    }
 }
 
-/*-----------------------------------------------------------------------**/
-template<typename ImageT>
-void binarize(const ImageT &src, ImageT &tgt, unsigned threshold)
-{
-   tgt.resize(src.rows(), src.cols());
+template<typename SrcImageT,typename TgtImageT>
+void add(const SrcImageT &src, TgtImageT &tgt, int value,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+ 
+   // TODO: this should probably be moved out of here.
+   //tgt.resize(src.rows(), src.cols());
 
-   typename ImageT::const_iterator spos = src.begin();
-   typename ImageT::const_iterator send = src.end();
-   typename ImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
+
+   for(;spos != send;++spos,++tpos) {
+      *tpos = *spos;
+      // Update Red
+      int signedColor = tpos->namedColor.red;
+      signedColor += value;
+      tpos->namedColor.red = checkValue(signedColor);
+      // Update Blue
+      signedColor = tpos->namedColor.blue;
+      signedColor += value;
+      tpos->namedColor.blue = checkValue(signedColor);
+      // Update Green
+      signedColor = tpos->namedColor.green;
+      signedColor += value;
+      tpos->namedColor.green = checkValue(signedColor);
+   }
+}
+
+
+/*-----------------------------------------------------------------------**/
+template<typename SrcImageT,typename TgtImageT>
+void binarize(const SrcImageT &src, TgtImageT &tgt, unsigned threshold,
+              // This ugly bit is an unnamed argument with a default which means it neither           
+              // contributes to the mangled declaration name nor requires an argument. So what is the 
+              // point? It still participates in SFINAE to help select that this is an appropriate    
+              // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+              // deduction so can't be applied to in parameter directly.                              
+              typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   // TODO: this should probably be moved out of here.
+   //tgt.resize(src.rows(), src.cols());
+
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
 
    for(;spos != send;++spos,++tpos) {
       if(spos->namedColor.gray < threshold) tpos->namedColor.gray = MINRGB;
@@ -54,18 +104,68 @@ void binarize(const ImageT &src, ImageT &tgt, unsigned threshold)
 }
 
 /*-----------------------------------------------------------------------**/
-template<typename ImageT>
-void binarizeDouble(const ImageT &src, ImageT &tgt, unsigned thresholdLow,unsigned thresholdHigh)
-{
-   tgt.resize(src.rows(), src.cols());
+template<typename SrcImageT,typename TgtImageT>
+void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance,
+                   const typename SrcImageT::pixel_type& thresholdBase,
+                   // This ugly bit is an unnamed argument with a default which means it neither           
+                   // contributes to the mangled declaration name nor requires an argument. So what is the 
+                   // point? It still participates in SFINAE to help select that this is an appropriate    
+                   // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+                   // deduction so can't be applied to in parameter directly.                              
+                   typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   typename ImageT::const_iterator spos = src.begin();
-   typename ImageT::const_iterator send = src.end();
-   typename ImageT::iterator tpos = tgt.begin();
+   // TODO: this should probably be moved out of here.
+   //tgt.resize(src.rows(), src.cols());
+
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
 
    for(;spos != send;++spos,++tpos) {
-      if(spos->namedColor.gray < thresholdLow ||
-         spos->namedColor.gray >= thresholdHigh)
+      double diffr = (double)spos->namedColor.red -
+                     (double)thresholdBase.namedColor.red;
+      double diffg = (double)spos->namedColor.green -
+                     (double)thresholdBase.namedColor.green;
+      double diffb = (double)spos->namedColor.blue -
+                     (double)thresholdBase.namedColor.blue;
+      double distance = std::sqrt(diffr*diffr + diffg*diffg + diffb*diffb);
+
+      if(distance < thresholdDistance) {
+         // Anything below the threshold is white
+         tpos->namedColor.red = MAXRGB;
+         tpos->namedColor.green = MAXRGB;
+         tpos->namedColor.blue = MAXRGB;
+      }
+      else {
+         // Anything above the threshold is red
+         tpos->namedColor.red = MAXRGB;
+         tpos->namedColor.green = MINRGB;
+         tpos->namedColor.blue = MINRGB;
+      }
+   }
+}
+
+
+
+/*-----------------------------------------------------------------------**/
+template<typename SrcImageT,typename TgtImageT>
+void binarizeDouble(const SrcImageT &src, TgtImageT &tgt, unsigned thresholdLow,unsigned thresholdHigh,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   // TODO: this should probably be moved out of here.
+   //tgt.resize(src.rows(), src.cols());
+
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
+
+   for(;spos != send;++spos,++tpos) {
+      if(spos->namedColor.gray < thresholdLow || spos->namedColor.gray >= thresholdHigh)
          tpos->namedColor.gray = MINRGB;
       else
          tpos->namedColor.gray = MAXRGB;
