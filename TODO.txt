@@ -1,0 +1,13 @@
+Design strategy
+===============
+
+* Image types are all based on abstract template types. So none of the images actually have
+ a defined type until the very last minute.
+* The hope is that algorithms can also operate as generically as possible, and thus work on
+ abstract types.
+
+* For converting between image types, there are really 3 things to consider:
+   1) Channel bitdepth or resolution
+   2) Color, grayscale, or other format (HSI/HSL/HSV, CMYK, etc.)
+   3) Actual image format, which is really a separate issue and should be resolved in the writing functions
+

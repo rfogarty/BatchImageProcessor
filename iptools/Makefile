@@ -9,7 +9,7 @@ OUT = ../lib/libiptools.a
 INCLUDES = -I. -I/usr/local/include
 
 # C++ compiler flags (-g -O2 -Wall)
-#CCFLAGS = -g3 -ggdb -O0
+#CCFLAGS = -std=c++03 -g3 -ggdb -O0
 CCFLAGS = -std=c++03 -O2 -march=native
 
 # compiler

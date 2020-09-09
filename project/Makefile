@@ -18,7 +18,7 @@ iptools:
 clean:
 	$(RM) $(BIN_DIR)$(EXEC); make all
 
-#DO_EXEC = g++ -g3 -O0 -ggdb -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+#DO_EXEC = g++ -std=c++03 -g3 -O0 -ggdb -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 DO_EXEC = g++ -std=c++03 -O2 -march=native -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
 #------ now compile

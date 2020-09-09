@@ -214,29 +214,6 @@ public:
 	   ImageT tgt(src);
       operateOnRegions(src,tgt);
       return tgt;
-      //if(endsWith(mInputImage,".pgm")) {
-      //   typedef GrayAlphaPixel<unsigned char> PixelT;
-      //   typedef Image<PixelT> ImageT;
-      //   ImageT src = readPGMFile<PixelT>(mInputImage);
-	   //   ImageT tgt(src);
-
-      //   operateOnRegions(src,tgt);
-
-      //   writePGMFile(mOutputImage,tgt);
-      //}
-      //else if(endsWith(mInputImage,".ppm")) {
-      //   typedef ColorPixel<unsigned char> PixelT;
-      //   typedef Image<PixelT> ImageT;
-      //   ImageT src = readPPMFile<PixelT>(mInputImage);
-	   //   ImageT tgt(src);
-
-      //   operateOnRegions(src,tgt);
-
-      //   writePPMFile(mOutputImage,tgt);
-      //}
-      //else {
-      //   // TODO: throw exception or print error, or both?
-      //}
    }
 };
 
@@ -325,7 +302,10 @@ void parseOperation(const std::string& line) {
          unsigned thresholdHigh = parseWord<unsigned>(ss);
          action = new BinarizeDT<ImageT>(thresholdLow,thresholdHigh);
       }
-      //OperationT op(inputfile,outputfile,action);
+      else {
+         std::cerr << "Unknown operation: " << operation << std::endl;
+         return;
+      }
       OperationT op(action);
       parseROIs(op,ss);
 
@@ -355,7 +335,10 @@ void parseOperation(const std::string& line) {
          fromPos.namedColor.blue = parseWord<unsigned>(ss);
          action = new BinarizeColor<ImageT>(threshold,fromPos);
       }
-      //OperationT op(inputfile,outputfile,action);
+      else {
+         std::cerr << "Unknown operation: " << operation << std::endl;
+         return;
+      }
       OperationT op(action);
       parseROIs(op,ss);
 
