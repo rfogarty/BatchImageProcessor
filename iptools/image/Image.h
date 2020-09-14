@@ -162,7 +162,12 @@ private:
    ImageWindow& operator=(const ImageWindow&); // deleted
 
 public:
-   const PixelT& pixel(unsigned row, unsigned col) const { return mStore->pixel(row+mRowBegin,col+mColBegin); }
+   const PixelT& pixel(unsigned row, unsigned col) const {
+      // Verify that the requested pixel is within the bounds of the ImageWindow
+      reportIfNotLessThan("mRowBegin+row",row,mRows);
+      reportIfNotLessThan("mColBegin+col",col,mCols);
+      return mStore->pixel(row+mRowBegin,col+mColBegin);
+   }
 
    PixelT& pixel(unsigned row, unsigned col) {
       // Note: if ImageWindow PixelT is a const type, the below const_cast is a no-op.
@@ -277,6 +282,193 @@ public:
 
 
 ///////////////////////////////////////////////////////////////////////////////
+// ElasticImageView - a view of an Image that is given a window size, but that
+//                    window size automatically grows and shrinks as it approaches
+//                    the border of the ImageBounds that contains it.
+//
+// Supports:
+// 1) Iteration of the "elastic window".
+// 2) Indexed access to pixels for read or write.
+// 3) Moving operations moveLeft and moveDown (note, no general move or resize supported)
+// 4) Listen callbacks during moveLeft and moveDown operations to track which pixels
+//    have departed the elastic window, and which pixels have entered it.
+//
+template<typename PixelT,
+         typename ImageStoreT  = ImageStore<typename std::remove_const<PixelT>::type>,
+         typename ImageBoundsT = ImageBounds<typename std::remove_const<PixelT>::type> >
+class ElasticImageView {
+public:
+   typedef ElasticImageView<PixelT,ImageStoreT,ImageBoundsT>   this_type;
+   typedef typename std::remove_const<PixelT>::type            pixel_type;
+   typedef ImageStoreT                                         image_store;
+   typedef ImageBoundsT                                        image_bounds;
+   typedef ImageViewIterator<PixelT,this_type>                 iterator;
+   typedef ImageViewIterator<const pixel_type,const this_type> const_iterator;
+
+private:
+   unsigned      mHalfWindowRows; // The largest size rows our elastic view can grow
+   unsigned      mHalfWindowCols; // The largest size cols our elastic view can grow
+   unsigned      mElasticHalfWindowRows;
+   unsigned      mElasticHalfWindowCols;
+   // mRow and mCol are offsets within a "bounded" view
+   // Additionally, together (mRow,mCol) represents the "center"
+   // of the ElasticImageView (not the upper corner).
+   unsigned      mRowPos;
+   unsigned      mColPos;
+   image_store*  mStore;
+   image_bounds* mBounds;
+   
+
+   template<typename DepartedListener,typename EnteredListener>
+   void shiftCol(const DepartedListener& departedListener,const EnteredListener& enteredListener) {
+      
+      unsigned oldStart = mColPos - mElasticHalfWindowCols; // inclusive
+      unsigned oldEnd   = mColPos + mElasticHalfWindowCols; // also inclusive
+
+      ++mColPos;
+
+      if(mColPos < mHalfWindowCols) {
+         mElasticHalfWindowCols = mColPos;
+      }
+      else {
+         unsigned rColPos = mBounds->cols()-1-mColPos;
+         if(rColPos < mHalfWindowCols) {
+            mElasticHalfWindowCols = rColPos;
+         }
+         else {
+            mElasticHalfWindowCols = mHalfWindowCols;
+         }
+      }
+
+      unsigned newStart = mColPos - mElasticHalfWindowCols; // inclusive
+      unsigned newEnd   = mColPos + mElasticHalfWindowCols; // also inclusive
+
+      // Now we just have to determine, what has moved outside
+      // and inside the window.
+      
+      // Send departed
+      unsigned rowBegin = mRowPos - mElasticHalfWindowRows;
+      unsigned rowEnd   = mRowPos + mElasticHalfWindowRows;
+
+      for(unsigned r = rowBegin;r <= rowEnd;++r) {
+         for(unsigned c = oldStart;c < newStart;++c) {
+            departed(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+         }
+      }
+
+      // Send entered
+      for(unsigned r = rowBegin;r <= rowEnd;++r) {
+         for(unsigned c = oldEnd + 1;c <= newEnd;++c) {
+            entered(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+         }
+      }
+   }
+
+   template<typename DepartedListener,typename EnteredListener>
+   void shiftRow(const DepartedListener& departedListener,const EnteredListener& enteredListener) {
+      
+      unsigned oldStart = mRowPos - mElasticHalfWindowRows; // inclusive
+      unsigned oldEnd   = mRowPos + mElasticHalfWindowRows; // also inclusive
+
+      ++mRowPos;
+
+      if(mRowPos < mHalfWindowRows) {
+         mElasticHalfWindowRows = mRowPos;
+      }
+      else {
+         unsigned rRowPos = mBounds->rows()-1-mRowPos;
+         if(rRowPos < mHalfWindowRows) {
+            mElasticHalfWindowRows = rRowPos;
+         }
+         else {
+            mElasticHalfWindowRows = mHalfWindowRows;
+         }
+      }
+
+      unsigned newStart = mRowPos - mElasticHalfWindowRows; // inclusive
+      unsigned newEnd   = mRowPos + mElasticHalfWindowRows; // also inclusive
+
+      // Now we just have to determine, what has moved outside
+      // and inside the window.
+      
+      // Send departed
+      unsigned colBegin = mColPos - mElasticHalfWindowCols;
+      unsigned colEnd   = mColPos + mElasticHalfWindowCols;
+
+      for(unsigned r = oldStart;r < newStart;++r) {
+         for(unsigned c = colBegin;c <= colEnd;++c) {
+            departed(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+         }
+      }
+
+      for(unsigned r = oldEnd + 1;r <= newEnd;++r) {
+         for(unsigned c = colBegin;c <= colEnd;++r) {
+            entered(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+         }
+      }
+   }
+
+public:
+
+   ElasticImageView(unsigned rows,unsigned cols,image_store* store,image_bounds* bounds) :
+      mHalfWindowRows((rows-1)/2),
+      mHalfWindowCols((cols-1)/2),
+      mElasticHalfWindowRows(0),
+      mElasticHalfWindowCols(0),
+      mRowPos(0),
+      mColPos(0),
+      mStore(store),
+      mBounds(bounds)
+   {}
+
+   const pixel_type& pixel(unsigned row, unsigned col) const {
+      // Verify that the requested pixel is within the bounds of the ImageWindow
+      reportIfNotLessThan("row",row,rows());
+      reportIfNotLessThan("col",col,cols());
+      unsigned rowOffset = mRowPos - mElasticHalfWindowRows + row;
+      unsigned colOffset = mColPos - mElasticHalfWindowCols + col;
+      return mStore->pixel(rowOffset+mBounds->rowBegin(),colOffset+mBounds()->colBegin());
+   }
+
+   pixel_type& pixel(unsigned row, unsigned col) {
+      // Note: if ImageWindow PixelT is a const type, the below const_cast is a no-op.
+      return const_cast<PixelT&>(static_cast<const this_type&>(*this).pixel(row,col));
+   }
+
+   template<typename DepartedListener,typename EnteredListener>
+   void moveRight(const DepartedListener& departedListener,const EnteredListener& enteredListener) {
+      reportIfNotLessThan("cols",mColPos+1,mBounds->cols());
+      shiftCol(departedListener,enteredListener);
+   }
+
+   template<typename DepartedListener,typename EnteredListener>
+   void moveDown(const DepartedListener& departedListener,const EnteredListener& enteredListener) {
+      reportIfNotLessThan("rows",mRowPos+1,mBounds->rows());
+      shiftRow(departedListener,enteredListener);
+   }
+
+   unsigned rows() const { return mElasticHalfWindowRows*2 + 1; }
+
+   unsigned cols() const { return mElasticHalfWindowCols*2 + 1; }
+
+   unsigned size() const { return rows() * cols(); }
+
+   unsigned rowPosition() const { return mRowPos; }
+
+   unsigned colPosition() const { return mColPos; }
+
+   iterator begin() { return iterator::begin(this); }
+   
+   iterator end() { return iterator::end(this); }
+
+   const_iterator begin() const { return const_iterator::begin(this); }
+   
+   const_iterator end() const { return const_iterator::end(this); }
+};
+
+
+
+///////////////////////////////////////////////////////////////////////////////
 // ImageView - a view of an Image is a bounded box that is valid anywhere
 //             within the bounds of an image, and is useful to operate on
 //             regions of an Image.
@@ -285,6 +477,12 @@ public:
 // 1) Iteration of the ImageView.
 // 2) Subviews (views of views).
 // 3) Indexed access to pixels for read or write.
+// 4) Copy construction of views
+// 5) Assignment of views of equal size
+// 6) Moving and Resizing of the View (as long as the ImageView remains
+//    within the ImageBounds of its parent.
+// 7) An ImageView's parent can be an Image itself or another ImageView.
+// 8) Can also create ElastiveImageViews
 //
 template<typename PixelT,
          typename ImageStoreT  = ImageStore<typename std::remove_const<PixelT>::type>,
@@ -295,8 +493,12 @@ public:
    typedef ImageStoreT                                            image_store;
    typedef ImageBoundsT                                           image_bounds;
    typedef ImageWindow<PixelT>                                    image_window;
+   typedef ImageView<PixelT,ImageStoreT,ImageBoundsT>             image_view;
+   typedef const ImageView<const pixel_type>                      const_image_view;
    typedef ImageViewIterator<PixelT,image_window>                 iterator;
    typedef ImageViewIterator<const pixel_type,const image_window> const_iterator;
+   typedef ElasticImageView<pixel_type>                           elastic_image_view;
+   typedef ElasticImageView<const pixel_type>                     const_elastic_image_view;
 
    ImageView(unsigned rows,unsigned cols,
              image_store* store,
@@ -332,12 +534,35 @@ public:
       return *this;
    }
 
-   // take a subview of the view
-   ImageView view(unsigned rows,unsigned cols,
-                  unsigned rowBegin = 0,unsigned colBegin = 0) {
-      return ImageView(rows,cols,this->mStore,this,
-                       rowBegin+this->mRowBegin,colBegin+this->mColBegin);
+   const_image_view view(unsigned rows,unsigned cols,
+                         unsigned rowBegin = 0,unsigned colBegin = 0) const {
+      return const_image_view(rows,cols,
+                             // Although Views can be made const, it does not make sense to have
+                             // a const ImageStore or ImageBounds type.
+                             const_cast<typename std::remove_const<image_store>::type*>(&this->mStore),
+                             const_cast<typename std::remove_const<image_bounds>::type*>(static_cast<const image_bounds*>(this)),
+                             rowBegin,colBegin);
    }
+
+
+   // take a subview of the view
+   image_view view(unsigned rows,unsigned cols,
+                   unsigned rowBegin = 0,unsigned colBegin = 0) {
+      return image_view(rows,cols,this->mStore,this,
+                        rowBegin+this->mRowBegin,colBegin+this->mColBegin);
+   }
+
+   const_elastic_image_view view(unsigned rows,unsigned cols) const {
+      return const_elastic_image_view(rows,cols,
+                             // Although Views can be made const, it does not make sense to have
+                             // a const ImageStore or ImageBounds type.
+                             const_cast<typename std::remove_const<image_store>::type*>(&this->mStore),
+                             const_cast<typename std::remove_const<image_bounds>::type*>(static_cast<const image_bounds*>(this)));
+   }
+
+
+   // take a subview of the view
+   elastic_image_view view(unsigned rows,unsigned cols) { return elastic_image_view(rows,cols,this->mStore,this); }
 
    iterator begin() { return iterator::begin(this); }
    
@@ -348,44 +573,6 @@ public:
    const_iterator end() const { return const_iterator::end(this); }
 };
 
-#if 0
-template<typename PixelT,typename ImageStoreT = ImageStore<typename std::remove_const<PixelT>::type> >
-class ElasticImageView //: public ImageWindow<PixelT,ImageStoreT> {
-private:
-   unsigned mMaxRows; // The largest size rows our elastic view can grow
-   unsigned mMaxCols; // The largest size cols our elastic view can grow
-   unsigned mRowBegin;
-   unsigned mColBegin;
-public:
-   typedef ImageView<PixelT,ImageStoreT> super_type;
-   using super_type::pixel_type;
-   using super_type::image_store;
-   using super_type::image_window;
-
-//   template<typename ElasticImageViewT>
-//   ImageView& operator=(const ElasticImageViewT& that) {
-//      if(this != &that) {
-//         static_cast<super_type&>(*this) = static_cast<typename ElasticImageViewT::super_type&>(that);
-//      }
-//      return *this;
-//   }
-
-   template<typename DepartedScopeAction,typename EnteredScopeAction>
-   void moveRight(const DepartedScopeAction& departed,const EnteredScopeAction& entered) {
-      // Implicitly need to know 
-      //    bounds (original)
-      //    current position
-      //    window size
-      //    current window size
-      reportIfNotLessThan("cols",mColBegin+1,this->mMaxCols+1);
-      
-   }
-
-   template<typename DepartedScopeAction,typename EnteredScopeAction>
-   void moveDown(const DepartedScopeAction& departed,const EnteredScopeAction& entered) {
-   }
-};
-#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // Image - a generic image type composed of a backend ImageStore and
@@ -412,6 +599,8 @@ public:
    typedef ImageBounds<pixel_type>                  image_bounds;
    typedef ImageView<pixel_type>                    image_view;
    typedef const ImageView<const pixel_type>        const_image_view;
+   typedef ElasticImageView<pixel_type>             elastic_image_view;
+   typedef ElasticImageView<const pixel_type>       const_elastic_image_view;
    typedef typename image_view::iterator            iterator;
    typedef typename image_view::const_iterator      const_iterator;
 
@@ -475,9 +664,9 @@ public:
 
    unsigned padding() const { return mStore.padding(); }
 
-   const PixelT& pixel(unsigned row, unsigned col) const { return mDefaultView.pixel(row,col); }
+   const pixel_type& pixel(unsigned row, unsigned col) const { return mDefaultView.pixel(row,col); }
 
-   PixelT& pixel(unsigned row, unsigned col) { return mDefaultView.pixel(row,col); }
+   pixel_type& pixel(unsigned row, unsigned col) { return mDefaultView.pixel(row,col); }
 
    const image_view& defaultView() const { return mDefaultView; }
 
@@ -494,6 +683,18 @@ public:
    image_view view(unsigned rows,unsigned cols,
                    unsigned rowBegin = 0,unsigned colBegin = 0) {
       return image_view(rows,cols,&mStore,&mStore,rowBegin,colBegin);
+   }
+
+   const_elastic_image_view elastic_view(unsigned rows,unsigned cols) const {
+      return const_elastic_image_view(rows,cols,
+                             // Although Views can be made const, it does not make sense to have
+                             // a const ImageStore or ImageBounds type.
+                             const_cast<typename std::remove_const<image_store>::type*>(&mStore),
+                             const_cast<typename std::remove_const<image_bounds>::type*>(static_cast<const image_bounds*>(&mStore)));
+   }
+
+   elastic_image_view elastic_view(unsigned rows,unsigned cols) {
+      return elastic_image_view(rows,cols,&mStore,&mStore);
    }
 
    iterator begin() { return mDefaultView.begin(); }
