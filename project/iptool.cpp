@@ -1,57 +1,25 @@
 /************************************************************
- *															*
- * This sample project include three functions:				*
- * 1. Add intensity for gray-level image.					*
- *    Input: source image, output image name, value			*
- *															*
- * 2. Image thresholding: pixels will become black if the	*
- *    intensity is below the threshold, and white if above	*
- *    or equal the threhold.								*
- *    Input: source image, output image name, threshold		*
- *															*
- * 3. Image scaling: reduction/expansion of 2 for 			*
- *    the width and length. This project uses averaging 	*
- *    technique for reduction and pixel replication			*
- *    technique for expansion.								*
- *    Input: source image, output image name, scale factor	*
- *															*
+ * iptool.cpp - a simple batch processing tool for 
+ *              experimenting with Image Processing
+ *
  ************************************************************/
 
 #include "image/NetpbmImage.h"
 #include "image/ImageOperation.h"
 #include "image/ImageAlgorithm.h"
+#include "image/RegionOfInterest.h"
 #include "utility/StringParse.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
 
 
-template<typename OperationT>
-void parseROIs(OperationT& op,std::stringstream& ss) {
-
-   while(!ss.eof()) {
-      try {
-         std::string regionID = parseWord<std::string>(ss);
-         if(regionID.size() == 0) break;
-         if(regionID == "ROI:") {
-            unsigned row = parseWord<unsigned>(ss);
-            unsigned col = parseWord<unsigned>(ss);
-            unsigned rows = parseWord<unsigned>(ss);
-            unsigned cols = parseWord<unsigned>(ss);
-            op.addRegion(RegionOfInterest(rows,cols,row,col));
-         }
-         else {
-            // Log error and break
-            break;
-         }
-      }
-      catch(const ParseError& pe) {
-         // TODO: log error
-      }
-   }
+void printHelpAndExit(const char* execname) {
+   std::cerr << "Usage: " << execname << " <operations_file>" << std::endl;
+   exit(1);
 }
 
-void parseOperation(const std::string& line) {
+void parseAndRunOperation(const std::string& line) {
    std::stringstream ss;
    ss << line;
 
@@ -61,6 +29,8 @@ void parseOperation(const std::string& line) {
    // 3) operation
    // 4) operation parameters
    // 5) [ROI: rowBegin, colBegin, rowSize, colSize]*
+   //    Note: "ROI:" followed by a space is required
+   //          before each region is specified.
 
    std::string inputfile = parseWord<std::string>(ss);
    std::string outputfile = parseWord<std::string>(ss);
@@ -69,7 +39,11 @@ void parseOperation(const std::string& line) {
    using namespace algorithm;
    
    if(endsWith(inputfile,".pgm")) {
-      assert(endsWith(outputfile,".pgm"));
+      if(!endsWith(outputfile,".pgm")) {
+          std::cerr << "ERROR: on line: " << line << "\n"
+                    << "ERROR: currently processing doesn't support different input and output file types" << std::endl;
+          return;
+      }
 
       typedef GrayAlphaPixel<unsigned char> PixelT;
       typedef Image<PixelT> ImageT;
@@ -78,32 +52,41 @@ void parseOperation(const std::string& line) {
 
       ActionT* action = 0;
 
-      if(operation == "add") {
-         int amount = parseWord<int>(ss);
-         action = new Intensity<ImageT>(amount);
-      }
-      else if(operation == "binarize") {
-         unsigned threshold = parseWord<unsigned>(ss);
-         action = new Binarize<ImageT>(threshold);
-      }
-      else if(operation == "binarizeDT") {
-         unsigned thresholdLow = parseWord<unsigned>(ss);
-         unsigned thresholdHigh = parseWord<unsigned>(ss);
-         action = new BinarizeDT<ImageT>(thresholdLow,thresholdHigh);
-      }
-      else {
-         std::cerr << "Unknown operation: " << operation << std::endl;
-         return;
-      }
-      OperationT op(action);
-      parseROIs(op,ss);
+      try {
+         if(operation == "add") {
+            action = Intensity<ImageT>::make(ss);
+         }
+         else if(operation == "binarize") {
+            action = Binarize<ImageT>::make(ss);
+         }
+         else if(operation == "binarizeDT") {
+            action = BinarizeDT<ImageT>::make(ss);
+         }
+         else {
+            std::cerr << "Unknown operation: " << operation << std::endl;
+            return;
+         }
+         OperationT op(action);
+         parseROIs(op,ss);
 
-      // Lastly, run the Operation!
-      ImageT tgt = op.run(readPGMFile<PixelT>(inputfile));
-      writePGMFile(outputfile,tgt);
+         // Lastly, run the Operation!
+         ImageT tgt = op.run(readPGMFile<PixelT>(inputfile));
+         writePGMFile(outputfile,tgt);
+      }
+      catch(const ParseError& pe) {
+         std::cerr << "ERROR: parsing operation on line: " << line << "\n"
+                   << "ERROR: " << pe.what() << std::endl; 
+      }
+      catch(const std::exception& e) {
+         std::cerr << "ERROR: processing operation: " << e.what() << std::endl;
+      }
    }
    else if(endsWith(inputfile,".ppm")) {
-      assert(endsWith(outputfile,".ppm"));
+      if(!endsWith(outputfile,".ppm")) {
+          std::cerr << "ERROR: on line: " << line << "\n"
+                    << "ERROR: currently processing doesn't support different input and output file types" << std::endl;
+          return;
+      }
 
       typedef ColorPixel<unsigned char> PixelT;
       typedef Image<PixelT> ImageT;
@@ -112,47 +95,52 @@ void parseOperation(const std::string& line) {
 
       ActionT* action = 0;
 
-      if(operation == "add") {
-         int amount = parseWord<int>(ss);
-         action = new Intensity<ImageT>(amount);
-      }
-      else if(operation == "binarizeColor") {
-         float threshold = parseWord<float>(ss);
-         PixelT fromPos;
-         fromPos.namedColor.red = parseWord<unsigned>(ss);
-         fromPos.namedColor.green = parseWord<unsigned>(ss);
-         fromPos.namedColor.blue = parseWord<unsigned>(ss);
-         action = new BinarizeColor<ImageT>(threshold,fromPos);
-      }
-      else {
-         std::cerr << "Unknown operation: " << operation << std::endl;
-         return;
-      }
-      OperationT op(action);
-      parseROIs(op,ss);
+      try {
+         if(operation == "add") {
+            action = Intensity<ImageT>::make(ss);
+         }
+         else if(operation == "binarizeColor") {
+            action = BinarizeColor<ImageT>::make(ss);
+         }
+         else {
+            std::cerr << "Unknown operation: " << operation << std::endl;
+            return;
+         }
+         OperationT op(action);
+         parseROIs(op,ss);
 
-      // Lastly, run the Operation!
-      ImageT tgt = op.run(readPPMFile<PixelT>(inputfile));
-      writePPMFile(outputfile,tgt);
+         // Lastly, run the Operation!
+         ImageT tgt = op.run(readPPMFile<PixelT>(inputfile));
+         writePPMFile(outputfile,tgt);
+      }
+      catch(const ParseError& pe) {
+         std::cerr << "ERROR: parsing operation on line: " << line << "\n"
+                   << "ERROR: " << pe.what() << std::endl; 
+      }
+      catch(const std::exception& e) {
+         std::cerr << "ERROR: processing operation: " << e.what() << std::endl;
+      }
    }
    else {
-      // TODO: report an error?
+      if(!endsWith(outputfile,".ppm")) {
+          std::cerr << "ERROR: on line: " << line << "\n"
+                    << "ERROR: unknown input file type" << std::endl;
+          return;
+      }
    }
 }
 
-void printHelpAndExit(const char* execname) {
-   std::cerr << "Usage: " << execname << " <operations_file>" << std::endl;
-   exit(1);
-}
 
 int main (int argc, char** argv) {
 
    if(argc != 2) printHelpAndExit(argv[0]);
 
+   // This main function iterates an input file
+   // that describes operations to run on input images.
    std::fstream opsFile;
    opsFile.open(argv[1], std::ios_base::in);
    if(opsFile.is_open()) {
-      for(std::string line; std::getline(opsFile, line);) parseOperation(line);
+      for(std::string line; std::getline(opsFile, line);) parseAndRunOperation(line);
    }
    else {
       std::cerr << "File: " << argv[1] << " could not be found." << std::endl;

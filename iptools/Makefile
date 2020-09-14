@@ -11,9 +11,11 @@ INCLUDES = -I. -I/usr/local/include
 # C++ compiler flags (-g -O2 -Wall)
 #CCFLAGS = -std=c++03 -g3 -ggdb -O0
 CCFLAGS = -std=c++03 -O2 -march=native
+#CCFLAGS = -Wall -Wpedantic -Werror -std=c++17 -O2 -march=native
 
 # compiler
 CCC = g++
+#CCC = clang++
 
 
 # compile flags
@@ -28,4 +30,4 @@ $(OUT): $(OBJ)
 	ar rcs $(OUT) $(OBJ)
 
 clean:
-	rm -f $(OBJ) $(OUT) Makefile.bak# DO NOT DELETE
+	rm -f $(OBJ) $(OUT)

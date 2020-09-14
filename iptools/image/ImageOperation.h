@@ -3,6 +3,11 @@
 #include "RegionOfInterest.h"
 #include "ImageAction.h"
 
+///////////////////////////////////////////////////////////////////////////////
+// Operation - a simple wrapper class that manages an Action type
+//             on a set of ROIs, or by default the entire image 
+//             if no ROIs are added to the Operation.
+//
 template<typename ActionT,typename ImageT = typename ActionT::image_type>
 class Operation {
 private:
@@ -40,7 +45,7 @@ public:
    }
 
    ImageT run(const ImageT& src) {
-	   ImageT tgt(src);
+	   ImageT tgt(src); // Copy construct the target image from the source
       operateOnRegions(src,tgt);
       return tgt;
    }

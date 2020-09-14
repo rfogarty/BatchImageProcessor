@@ -11,3 +11,9 @@ Design strategy
    2) Color, grayscale, or other format (HSI/HSL/HSV, CMYK, etc.)
    3) Actual image format, which is really a separate issue and should be resolved in the writing functions
 
+* Should have conversion functions between pixel types.
+* Move MAX and MIN values into the Pixel types, to ensure algorithms can be made generic.
+** Perhaps even a simple min and max function can be supplied.
+* Smoothing function needs to be done.
+* Add scaling function back in - maybe look at doing FFT-based solution for arbitrary scaling.
+

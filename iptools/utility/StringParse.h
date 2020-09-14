@@ -5,14 +5,20 @@
 #include <sstream>
 #include <string>
 
+// endsWith - checks if a string ends with the suffix
 bool endsWith(const std::string& str, const std::string& suffix);
 
 
-// This is a little ugly to try and be resilient to all the PNM formats; 
-// this would be much easier in ANTLR!
+// used to grab metadata row/cols out of PNM format - not really
+// a robust function (so hardly deserving to be its own function)
 bool readNext2Integers(std::istream& ins,unsigned& val1,unsigned& val2);
 
 
+
+///////////////////////////////////////////////////////////////////////////////
+// ParseError - exception type that may be thrown if some sort of parsing
+//              error occurs.
+//
 class ParseError : public std::exception {
 private:
    std::string mMessage;
@@ -26,11 +32,13 @@ public:
 };
 
 
+// parseWord - pull a specific type out of an inputstream
+//             or throw ParseError if unsuccessful.
 template<typename ReturnT>
-ReturnT parseWord(std::stringstream& ss) {
+ReturnT parseWord(std::istream& ins) {
    ReturnT retval;
-   ss >> retval;
-   if(ss.fail()) throw ParseError("Reading string from stream failed");
+   ins >> retval;
+   if(ins.fail()) throw ParseError("Reading string from stream failed");
    return retval;
 }
 
