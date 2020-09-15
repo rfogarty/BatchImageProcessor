@@ -3,7 +3,6 @@
 #include "Image.h"
 #include "ImageAction.h"
 #include "Pixel.h"
-#include "cppTools/Platform.h"
 #include "utility/Error.h"
 #include "utility/StringParse.h"
 #include <cmath>
@@ -164,26 +163,6 @@ void binarizeDouble(const SrcImageT &src, TgtImageT &tgt, unsigned thresholdLow,
 
 
 
-template<typename PixelT,typename ChannelT = typename PixelT::value_type>
-struct AccumulatorVariableSelect { typedef ChannelT type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,unsigned char> { typedef unsigned type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint16_t> { typedef unsigned type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint32_t> { typedef uint64_t type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,signed char> { typedef int type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int16_t> { typedef int type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int32_t> { typedef int64_t type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,float> { typedef double type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,double> { typedef double type; };
-
-
 template<typename PixelT,typename AccumulatorVariableTT>
 struct PixelSubtractor {
    AccumulatorVariableTT& mAccumulator;
@@ -209,29 +188,30 @@ private:
    typedef PixelSubtractor<PixelT,AccumulatorVariableT> SubtractorT;
    typedef PixelAdder<PixelT,AccumulatorVariableT>      AdderT;
 
-   ConstElasticViewT    mView;
-   AccumulatorVariableT mAccumulator;
-   SubtractorT          mSubtractor;
-   AdderT               mAdder;
+   typename ImageViewT::const_image_view mBoundingView;
+   ConstElasticViewT                     mElasticView;
+   AccumulatorVariableT                  mAccumulator;
+   SubtractorT                           mSubtractor;
+   AdderT                                mAdder;
 
 public:
    typedef typename PixelT::value_type value_type;
 
-   SmoothX(const ImageViewT& imageView,unsigned windowSize) : 
-      mView(imageView.elastic_view(1,windowSize)),
+   SmoothX(const ImageViewT& imageView,unsigned windowSize) :
+      mBoundingView(imageView),
+      mElasticView(mBoundingView.elastic_view(1,windowSize)),
       // Initialize mAccumulator with element 0,0
-      mAccumulator(mView.pixel(0,0).namedColor.gray),
+      mAccumulator(mElasticView.pixel(0,0).namedColor.gray),
       mSubtractor(mAccumulator),
       mAdder(mAccumulator)
    {}
 
    value_type average() {
-      // Do all smoothing in double math
-      return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mAccumulator / mView.size())));
+      return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mAccumulator / mElasticView.size())));
    }
 
    void operator++() {
-      mView.moveRight(mSubtractor,mAdder);
+      mElasticView.moveRight(mSubtractor,mAdder);
    }
 };
 
@@ -244,30 +224,30 @@ private:
    typedef PixelSubtractor<PixelT,AccumulatorVariableT> SubtractorT;
    typedef PixelAdder<PixelT,AccumulatorVariableT>      AdderT;
 
-   ConstElasticViewT    mView;
-   AccumulatorVariableT mAccumulator;
-   SubtractorT          mSubtractor;
-   AdderT               mAdder;
+   typename ImageViewT::const_image_view mBoundingView;
+   ConstElasticViewT                     mElasticView;
+   AccumulatorVariableT                  mAccumulator;
+   SubtractorT                           mSubtractor;
+   AdderT                                mAdder;
 
 public:
    typedef typename PixelT::value_type value_type;
 
-   SmoothY(const ImageViewT& imageView,unsigned windowSize) : 
-      mView(imageView.elastic_view(windowSize,1)),
+   SmoothY(const ImageViewT& imageView,unsigned windowSize) :
+      mBoundingView(imageView),
+      mElasticView(mBoundingView.elastic_view(windowSize,1)),
       // Initialize mAccumulator with element 0,0
-      mAccumulator(mView.pixel(0,0).namedColor.gray),
+      mAccumulator(mElasticView.pixel(0,0).namedColor.gray),
       mSubtractor(mAccumulator),
       mAdder(mAccumulator)
    {}
 
    value_type average() {
-      // Do all smoothing in double math
-      return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mAccumulator / mView.size())));
-      //return (double) mAccumulator / mView.size();
+      return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mAccumulator / mElasticView.size())));
    }
 
    void operator++() {
-      mView.moveDown(mSubtractor,mAdder);
+      mElasticView.moveDown(mSubtractor,mAdder);
    }
 };
 
@@ -298,8 +278,6 @@ void uniformSmooth(const SrcImageT &src, TgtImageT &tgt,unsigned windowSize,
    for(unsigned i = 0;i < rows;++i) {
       typedef SmoothX<SrcImageT> SmoothXT;
       typedef typename SrcImageT::image_view RowViewT;
-      // NOTE: importantly views on which an ElasticImageView is based must
-      // exist for the life of the ElasticImageView
       
       RowViewT rowView(src.view(1,cols,i));
       SmoothXT smoothX(rowView,windowSize);

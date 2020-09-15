@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cppTools/TemplateMetaprogramming.h"
+#include "cppTools/Platform.h"
 #include <limits>
 #include <ostream>
 
@@ -264,5 +265,24 @@ std::ostream& operator<<(std::ostream& os,const MonochromePixel<ChannelT,Channel
 }
 
 
+
+template<typename PixelT,typename ChannelT = typename PixelT::value_type>
+struct AccumulatorVariableSelect { typedef ChannelT type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,unsigned char> { typedef unsigned type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint16_t> { typedef unsigned type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint32_t> { typedef uint64_t type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,signed char> { typedef int type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int16_t> { typedef int type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int32_t> { typedef int64_t type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,float> { typedef double type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,double> { typedef double type; };
 
 

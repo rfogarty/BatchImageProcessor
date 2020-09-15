@@ -157,6 +157,22 @@ protected:
       // operations ensure invariants are never violated.
    }
 
+   // This conversion constructor is used to convert between non-const
+   // and const versions of PixelT.
+   template<typename ImageWindowT>
+   explicit ImageWindow(const ImageWindowT& that) :
+      mRows(that.rows()),
+      mCols(that.cols()),
+      mSize(mRows*mCols),
+      mRowBegin(that.rowBegin()),
+      mColBegin(that.colBegin()),
+      mStore(that.mStore),
+      mBounds(that.mBounds) {
+      // Note: shouldn't need to check invariants here because all resize/move
+      // operations ensure invariants are never violated.
+   }
+
+   template<typename T,typename U,typename V> friend class ImageWindow;
 private:
    // ImageWindows themselves are not assignable, however,
    // their derivatives can be.
@@ -509,6 +525,13 @@ public:
              image_bounds* bounds,
              unsigned rowBegin = 0, unsigned colBegin = 0) :
       image_window(rows,cols,store,bounds,rowBegin+bounds->rowBegin(),colBegin+bounds->colBegin())
+   {}
+
+   // This conversion constructor is used to convert between non-const
+   // and const versions of PixelT.
+   template<typename ImageViewT>
+   explicit ImageView(const ImageViewT& that) :
+      image_window(that)
    {}
 
    ImageView& operator=(const ImageView& that) {
