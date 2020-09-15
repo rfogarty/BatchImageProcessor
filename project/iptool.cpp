@@ -20,6 +20,7 @@ void printHelpAndExit(const char* execname) {
 }
 
 void parseAndRunOperation(const std::string& line) {
+
    std::stringstream ss;
    ss << line;
 
@@ -28,13 +29,24 @@ void parseAndRunOperation(const std::string& line) {
    // 2) outputfile
    // 3) operation
    // 4) operation parameters
-   // 5) [ROI: rowBegin, colBegin, rowSize, colSize]*
+   // 5) [ROI: rowBegin, colBegin, rowSize, colSize <parameters>]*
    //    Note: "ROI:" followed by a space is required
    //          before each region is specified.
+  
+   std::string inputfile;
+   std::string outputfile;
+   std::string operation;
 
-   std::string inputfile = parseWord<std::string>(ss);
-   std::string outputfile = parseWord<std::string>(ss);
-   std::string operation = parseWord<std::string>(ss);
+   try {
+      inputfile = parseWord<std::string>(ss);
+      outputfile = parseWord<std::string>(ss);
+      operation = parseWord<std::string>(ss);
+   }
+   catch(const ParseError& pe) {
+      std::cerr << "ERROR: parsing line: " << line << "\n"
+                << "ERROR: " << pe.what() << std::endl;
+      return;
+   }
 
    using namespace algorithm;
    
@@ -57,6 +69,9 @@ void parseAndRunOperation(const std::string& line) {
          if(operation == "add") {
             action = Intensity<ImageT>::make(ss);
          }
+         else if(operation == "scale") {
+            action = Scale<ImageT>::make(ss);
+         }
          else if(operation == "binarize") {
             action = Binarize<ImageT>::make(ss);
          }
@@ -71,7 +86,7 @@ void parseAndRunOperation(const std::string& line) {
             return;
          }
          OperationT op(action);
-         parseROIs(op,ss);
+         parseROIsAndParameters(op,action->numParameters(),ss);
 
          // Lastly, run the Operation!
          ImageT tgt = op.run(readPGMFile<PixelT>(inputfile));
@@ -111,7 +126,7 @@ void parseAndRunOperation(const std::string& line) {
             return;
          }
          OperationT op(action);
-         parseROIs(op,ss);
+         parseROIsAndParameters(op,action->numParameters(),ss);
 
          // Lastly, run the Operation!
          ImageT tgt = op.run(readPPMFile<PixelT>(inputfile));
@@ -126,11 +141,8 @@ void parseAndRunOperation(const std::string& line) {
       }
    }
    else {
-      if(!endsWith(outputfile,".ppm")) {
-          std::cerr << "ERROR: on line: " << line << "\n"
-                    << "ERROR: unknown input file type" << std::endl;
-          return;
-      }
+       std::cerr << "ERROR: on line: " << line << "\n"
+                 << "ERROR: unknown input file type" << std::endl;
    }
 }
 
@@ -144,7 +156,9 @@ int main (int argc, char** argv) {
    std::fstream opsFile;
    opsFile.open(argv[1], std::ios_base::in);
    if(opsFile.is_open()) {
-      for(std::string line; std::getline(opsFile, line);) parseAndRunOperation(line);
+      for(std::string line; std::getline(opsFile, line);) {
+         if(line.size() > 0) parseAndRunOperation(line);
+      }
    }
    else {
       std::cerr << "File: " << argv[1] << " could not be found." << std::endl;

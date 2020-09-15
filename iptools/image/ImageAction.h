@@ -1,6 +1,8 @@
 #pragma once
 
 #include "RegionOfInterest.h"
+#include <vector>
+#include <string>
 
 ///////////////////////////////////////////////////////////////////////////////
 // ActionType is a simple enumeration that can operate as a label for
@@ -15,6 +17,9 @@ enum ActionType {
    UNIFORM_SMOOTH
 };
 
+// Used to push ROI function parameters to run callbacks.
+typedef std::vector<std::string> ParameterPack;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Action - an abstract process or algorithm to run on some Image type.
 //
@@ -28,9 +33,13 @@ public:
 
    virtual ~Action() {}
 
-   virtual ActionType type() = 0;
+   virtual ActionType type() const = 0;
+
+   virtual unsigned numParameters() const = 0;
 
    virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) = 0;
+   
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) = 0;
 };
 
 

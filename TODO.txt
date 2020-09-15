@@ -12,8 +12,46 @@ Design strategy
    3) Actual image format, which is really a separate issue and should be resolved in the writing functions
 
 * Should have conversion functions between pixel types.
-* Move MAX and MIN values into the Pixel types, to ensure algorithms can be made generic.
-** Perhaps even a simple min and max function can be supplied.
-* Smoothing function needs to be done.
-* Add scaling function back in - maybe look at doing FFT-based solution for arbitrary scaling.
+DONE * Move MAX and MIN values into the Pixel types, to ensure algorithms can be made generic.
+DONE ** Perhaps even a simple min and max function can be supplied.
+DONE * Smoothing function needs to be done.
+DONE * Add scaling function back in - maybe look at doing FFT-based solution for arbitrary scaling.
+
+
+HW#1
+
+1. General modification
+DONE   a. You are to add all new processing to the image manipulation program provided by TA.
+DONE   b. Alternatively, you can implement the above by yourself
+DONE   c. Modify updated access to parameter file containing list of images, specification of the function to perform 
+      on each image, and set of parameters for each image. [1 point]
+
+2. Processing of Grey Level Images
+DONE   a. Implement rectangular region of interest (ROI) selection by specifying pixel location (X,Y) of the left-top pixel
+      of ROI and ROI size (Sx,Sy). Each of the following operations should be performed in ROI and combined
+      image generated. Allow at least three ROIs per image. [1 points]
+DONE   b. Modify all HW0 functions (except scaling) to operate only within specified ROIs. Allow different parameters
+      for each ROI. [1 points]
+DONE   c. Implement uniform smoothing filter operation using square odd window size (WS). Implement adaptive
+      processing when smoothing window is close to the ROI boundary by progressively reducing window size all
+      the way to 3x3 [3 points]
+
+3. Processing of Color Images
+DONE   a. Add color brightness modification to your toolbox. Let value Add-C be user defined threshold. Process each
+      color channel: R1=R+Add-C, G1=G+Add-C, B1=B+Add-C. Make sure (R1,G1,B1) are within allowable
+      values. This function should operate within specified ROI with different parameters for each ROI. [1 points]
+DONE   b. Add color binarization option to your image processing toolbox. Let threshold TC be user defined input
+      parameter. For color images, consider TC be a distance from user defined color C(CR,CB,CG) in RGB space.
+      Set all pixels within TC distance to "red" and the rest to "white". This function should operate within specified
+      ROI with different parameters for each ROI. [3 points]
+
+4. Write the report for this assignment
+   a. Create a "readme" file specifying format of the parameter file, describe all parameters and all run options (include
+      in the report).
+   b. Give an example of the parameter file set to process with several images with varying functions and parameters.
+   c. Describe all operations and your implementation.
+   d. Do include input and output example images for each function implemented (use several gray level and color images
+      and at least two different parameters as appropriate, multiple ROIs, etc.)
+   e. Utilize your cell phone or web cam to capture sample images suitable for testing your software
+      discuss results and performance of all operation
 

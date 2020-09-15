@@ -45,4 +45,10 @@ void reportIfNotEqual(const char* field,T val1,T val2) {
 }
 
 
-
+inline void fail(const char* reason) {
+#ifdef FAIL_WITH_ASSERT
+   assert(false);
+#else
+   throw std::out_of_range(reason);
+#endif
+}

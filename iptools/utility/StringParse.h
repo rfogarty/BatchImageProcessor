@@ -44,4 +44,16 @@ ReturnT parseWord(std::istream& ins) {
    return retval;
 }
 
+// parseWord - pull a specific type out of a string
+//             or throw ParseError if unsuccessful.
+//             This is equivalent to Boost's lexical_cast.
+template<typename ReturnT>
+ReturnT parseWord(const std::string& str) {
+   std::istringstream ins(str);
+   ReturnT retval;
+   ins >> retval;
+   if(ins.fail()) throw ParseError("Reading string from stream failed");
+   return retval;
+}
+
 

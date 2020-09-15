@@ -17,9 +17,46 @@ public:
    virtual unsigned cols() const = 0;
    virtual unsigned rowBegin() const = 0;
    virtual unsigned colBegin() const = 0;
+   // rowEnd is exclusive (not inclusive of range).
+   unsigned rowEnd() const { return rowBegin() + rows(); }
+   // colEnd is exclusive (not inclusive of range).
+   unsigned colEnd() const { return colBegin() + cols(); }
 
    std::size_t pixelSize() { return sizeof(PixelT); }
 };
+
+template<typename PixelT>
+class SavedImageBounds : public ImageBounds<PixelT> {
+private:
+   unsigned mRows;
+   unsigned mCols;
+   unsigned mRowBegin;
+   unsigned mColBegin;
+
+public:
+   SavedImageBounds() :
+      mRows(0u),
+      mCols(0u),
+      mRowBegin(0u),
+      mColBegin(0u)
+   {}
+
+   template<typename ImageBoundsT>
+   SavedImageBounds(const ImageBoundsT& bounds) :
+      mRows(bounds.rows()),
+      mCols(bounds.cols()),
+      mRowBegin(bounds.rowBegin()),
+      mColBegin(bounds.colBegin())
+   {}
+
+   virtual ~SavedImageBounds() {}
+
+   virtual unsigned rows() const { return mRows; }
+   virtual unsigned cols() const { return mCols; }
+   virtual unsigned rowBegin() const { return mRowBegin; }
+   virtual unsigned colBegin() const { return mColBegin; }
+};
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // ImageStore - class that manages the memory for an Image.
@@ -99,6 +136,8 @@ public:
    }
 };
 
+// Prototype for Image class
+template<typename PixelT> class Image;
 
 ///////////////////////////////////////////////////////////////////////////////
 // ImageWindow - base class for setting up a view of Image data.
@@ -110,20 +149,24 @@ template<typename PixelT,
          typename ImageStoreT  = ImageStore<typename std::remove_const<PixelT>::type>,
          typename ImageBoundsT = ImageBounds<typename std::remove_const<PixelT>::type> >
 class ImageWindow : public ImageBoundsT {
+   // Images are friends of ImageWindows, to allow for Image assignment
+   //   which requires the private update of bounds.
+   template<typename PixelTT> friend class Image;
 public:
    typedef typename std::remove_const<PixelT>::type pixel_type;
    typedef ImageWindow<PixelT,ImageStoreT>          this_type;
    typedef ImageStoreT                              image_store;
    typedef ImageBoundsT                             image_bounds;
+   typedef SavedImageBounds<pixel_type>             saved_image_bounds;
 
 protected:
-   unsigned      mRows;
-   unsigned      mCols;
-   unsigned      mSize; // For optimization, compute only when resized
-   unsigned      mRowBegin;
-   unsigned      mColBegin;
-   image_store*  mStore;
-   image_bounds* mBounds;
+   unsigned           mRows;
+   unsigned           mCols;
+   unsigned           mSize; // For optimization, compute only when resized
+   unsigned           mRowBegin;
+   unsigned           mColBegin;
+   image_store*       mStore;
+   saved_image_bounds mBounds;
 
 
    // Constructor is protected because this class is only meant to be
@@ -131,17 +174,17 @@ protected:
    ImageWindow(unsigned rows,unsigned cols,
                image_store* store,
                image_bounds* bounds,
-               unsigned rowBegin = 0, unsigned colBegin = 0) :
+               unsigned rowPos = 0, unsigned colPos = 0) :
       mRows(rows),
       mCols(cols),
       mSize(rows*cols),
-      mRowBegin(rowBegin),
-      mColBegin(colBegin),
+      mRowBegin(rowPos+bounds->rowBegin()),
+      mColBegin(colPos+bounds->colBegin()),
       mStore(store),
-      mBounds(bounds) {
+      mBounds(*bounds) {
       // Ensure that this ImageWindow is valid, and throw exception if not
-      reportIfNotLessThan("rowBegin+rows",rowBegin + rows,mBounds->rowBegin()+mBounds->rows()+1);
-      reportIfNotLessThan("colBegin+cols",colBegin + cols,mBounds->colBegin()+mBounds->cols()+1);
+      reportIfNotLessThan("rowPos+rows",rowPos + rows,mBounds.rows()+1);
+      reportIfNotLessThan("colPos+cols",colPos + cols,mBounds.cols()+1);
    }
 
    // Copy-constructible only via derivatives
@@ -178,6 +221,10 @@ private:
    // their derivatives can be.
    ImageWindow& operator=(const ImageWindow&); // deleted
 
+   void updateBounds(const image_bounds& newBounds) {
+      mBounds = saved_image_bounds(newBounds);
+   }
+
 public:
    const PixelT& pixel(unsigned row, unsigned col) const {
       // Verify that the requested pixel is within the bounds of the ImageWindow
@@ -194,19 +241,19 @@ public:
    // In some cases (such as when assigning one image to another)
    // it is not safe to perform resize and move as separate functions.
    // Therefore, this function should be called in such a case.
-   void resizeAndMove(unsigned rows,unsigned cols,unsigned rowBegin,unsigned colBegin) {
-      reportIfNotLessThan("rowBegin+mRows",rowBegin + rows,mBounds->rows()+1);
-      reportIfNotLessThan("colBegin+mCols",colBegin + cols,mBounds->cols()+1);
+   void resizeAndMove(unsigned rows,unsigned cols,unsigned rowPos,unsigned colPos) {
+      reportIfNotLessThan("rowBegin+mRows",rowPos + rows,mBounds.rows()+1);
+      reportIfNotLessThan("colBegin+mCols",colPos + cols,mBounds.cols()+1);
       mRows = rows;
       mCols = cols;
       mSize = rows*cols;
-      mRowBegin = rowBegin + mBounds->rowBegin();
-      mColBegin = colBegin + mBounds->colBegin();
+      mRowBegin = rowPos + mBounds.rowBegin();
+      mColBegin = colPos + mBounds.colBegin();
    }
 
    void resize(unsigned rows,unsigned cols) {
-      reportIfNotLessThan("rows",mRowBegin + rows,mBounds->rows()+1);
-      reportIfNotLessThan("cols",mColBegin + cols,mBounds->cols()+1);
+      reportIfNotLessThan("rows",mRowBegin + rows,mBounds.rows()+1);
+      reportIfNotLessThan("cols",mColBegin + cols,mBounds.cols()+1);
       mRows = rows;
       mCols = cols;
       mSize = rows*cols;
@@ -222,11 +269,11 @@ public:
 
    virtual unsigned colBegin() const { return mColBegin; }
 
-   void move(unsigned rowBegin,unsigned colBegin) {
-      reportIfNotLessThan("rowBegin+mRows",rowBegin + mRows,mBounds->rows()+1);
-      reportIfNotLessThan("colBegin+mCols",colBegin + mCols,mBounds->cols()+1);
-      mRowBegin = rowBegin + mBounds->rowBegin();
-      mColBegin = colBegin + mBounds->colBegin();
+   void move(unsigned rowPos,unsigned colPos) {
+      reportIfNotLessThan("rowBegin+mRows",rowPos + mRows,mBounds.rows()+1);
+      reportIfNotLessThan("colBegin+mCols",colPos + mCols,mBounds.cols()+1);
+      mRowBegin = rowPos + mBounds.rowBegin();
+      mColBegin = colPos + mBounds.colBegin();
    }
 };
 
@@ -319,21 +366,23 @@ public:
    typedef typename std::remove_const<PixelT>::type            pixel_type;
    typedef ImageStoreT                                         image_store;
    typedef ImageBoundsT                                        image_bounds;
+   typedef SavedImageBounds<pixel_type>                        saved_image_bounds;
    typedef ImageViewIterator<PixelT,this_type>                 iterator;
    typedef ImageViewIterator<const pixel_type,const this_type> const_iterator;
 
 private:
-   unsigned      mHalfWindowRows; // The largest size rows our elastic view can grow
-   unsigned      mHalfWindowCols; // The largest size cols our elastic view can grow
-   unsigned      mElasticHalfWindowRows;
-   unsigned      mElasticHalfWindowCols;
-   // mRow and mCol are offsets within a "bounded" view
-   // Additionally, together (mRow,mCol) represents the "center"
-   // of the ElasticImageView (not the upper corner).
-   unsigned      mRowPos;
-   unsigned      mColPos;
-   image_store*  mStore;
-   image_bounds* mBounds;
+   unsigned           mHalfWindowRows; // The largest size rows our elastic view can grow
+   unsigned           mHalfWindowCols; // The largest size cols our elastic view can grow
+   unsigned           mElasticHalfWindowRows;
+   unsigned           mElasticHalfWindowCols;
+   // mRowPos and mColPos are offsets within a "bounded" view
+   // Additionally, together (mRowPos,mColPos) represents the "center"
+   // of the ElasticImageView (not the upper corner of the window), while
+   // an ImageView's rowBegin and colBegin represent its window's top-left corner.
+   unsigned           mRowPos;
+   unsigned           mColPos;
+   image_store*       mStore;
+   saved_image_bounds mBounds;
    
 
    template<typename DepartedListener,typename EnteredListener>
@@ -348,7 +397,7 @@ private:
          mElasticHalfWindowCols = mColPos;
       }
       else {
-         unsigned rColPos = mBounds->cols()-1-mColPos;
+         unsigned rColPos = mBounds.cols()-1-mColPos;
          if(rColPos < mHalfWindowCols) {
             mElasticHalfWindowCols = rColPos;
          }
@@ -369,14 +418,14 @@ private:
 
       for(unsigned r = rowBegin;r <= rowEnd;++r) {
          for(unsigned c = oldStart;c < newStart;++c) {
-            departedListener(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+            departedListener(mStore->pixel(mBounds.rowBegin()+r,mBounds.colBegin()+c));
          }
       }
 
       // Send entered
       for(unsigned r = rowBegin;r <= rowEnd;++r) {
          for(unsigned c = oldEnd + 1;c <= newEnd;++c) {
-            enteredListener(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+            enteredListener(mStore->pixel(mBounds.rowBegin()+r,mBounds.colBegin()+c));
          }
       }
    }
@@ -393,7 +442,7 @@ private:
          mElasticHalfWindowRows = mRowPos;
       }
       else {
-         unsigned rRowPos = mBounds->rows()-1-mRowPos;
+         unsigned rRowPos = mBounds.rows()-1-mRowPos;
          if(rRowPos < mHalfWindowRows) {
             mElasticHalfWindowRows = rRowPos;
          }
@@ -414,13 +463,13 @@ private:
 
       for(unsigned r = oldStart;r < newStart;++r) {
          for(unsigned c = colBegin;c <= colEnd;++c) {
-            departedListener(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+            departedListener(mStore->pixel(mBounds.rowBegin()+r,mBounds.colBegin()+c));
          }
       }
 
       for(unsigned r = oldEnd + 1;r <= newEnd;++r) {
          for(unsigned c = colBegin;c <= colEnd;++c) {
-            enteredListener(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+            enteredListener(mStore->pixel(mBounds.rowBegin()+r,mBounds.colBegin()+c));
          }
       }
    }
@@ -435,7 +484,7 @@ public:
       mRowPos(0),
       mColPos(0),
       mStore(store),
-      mBounds(bounds) {
+      mBounds(*bounds) {
       // Ensure rows and columns is at least 1 or greater!
       reportIfNotLessThan("rows",0u,rows);
       reportIfNotLessThan("cols",0u,cols);
@@ -447,7 +496,7 @@ public:
       reportIfNotLessThan("col",col,cols());
       unsigned rowOffset = mRowPos - mElasticHalfWindowRows + row;
       unsigned colOffset = mColPos - mElasticHalfWindowCols + col;
-      return mStore->pixel(rowOffset+mBounds->rowBegin(),colOffset+mBounds->colBegin());
+      return mStore->pixel(rowOffset+mBounds.rowBegin(),colOffset+mBounds.colBegin());
    }
 
    PixelT& pixel(unsigned row, unsigned col) {
@@ -457,13 +506,13 @@ public:
 
    template<typename DepartedListener,typename EnteredListener>
    void moveRight(DepartedListener& departedListener,EnteredListener& enteredListener) {
-      reportIfNotLessThan("cols",mColPos+1,mBounds->cols());
+      reportIfNotLessThan("cols",mColPos+1,mBounds.cols());
       shiftCol(departedListener,enteredListener);
    }
 
    template<typename DepartedListener,typename EnteredListener>
    void moveDown(DepartedListener& departedListener,EnteredListener& enteredListener) {
-      reportIfNotLessThan("rows",mRowPos+1,mBounds->rows());
+      reportIfNotLessThan("rows",mRowPos+1,mBounds.rows());
       shiftRow(departedListener,enteredListener);
    }
 
@@ -508,6 +557,9 @@ template<typename PixelT,
          typename ImageStoreT  = ImageStore<typename std::remove_const<PixelT>::type>,
          typename ImageBoundsT = ImageBounds<typename std::remove_const<PixelT>::type> >
 class ImageView : public ImageWindow<PixelT> {
+   // Images are friends of ImageWindows, to allow for Image assignment
+   //   which requires the private update of bounds.
+   template<typename PixelTT> friend class Image;
 public:
    typedef typename std::remove_const<PixelT>::type               pixel_type;
    typedef ImageStoreT                                            image_store;
@@ -523,8 +575,8 @@ public:
    ImageView(unsigned rows,unsigned cols,
              image_store* store,
              image_bounds* bounds,
-             unsigned rowBegin = 0, unsigned colBegin = 0) :
-      image_window(rows,cols,store,bounds,rowBegin+bounds->rowBegin(),colBegin+bounds->colBegin())
+             unsigned rowPos = 0, unsigned colPos = 0) :
+      image_window(rows,cols,store,bounds,rowPos,colPos)
    {}
 
    // This conversion constructor is used to convert between non-const
@@ -562,21 +614,21 @@ public:
    }
 
    const_image_view view(unsigned rows,unsigned cols,
-                         unsigned rowBegin = 0,unsigned colBegin = 0) const {
+                         unsigned rowPos = 0,unsigned colPos = 0) const {
       return const_image_view(rows,cols,
                              // Although Views can be made const, it does not make sense to have
                              // a const ImageStore or ImageBounds type.
                              const_cast<typename std::remove_const<image_store>::type*>(this->mStore),
                              const_cast<typename std::remove_const<image_bounds>::type*>(static_cast<const image_bounds*>(this)),
-                             rowBegin,colBegin);
+                             rowPos,colPos);
    }
 
 
    // take a subview of the view
    image_view view(unsigned rows,unsigned cols,
-                   unsigned rowBegin = 0,unsigned colBegin = 0) {
+                   unsigned rowPos = 0,unsigned colPos = 0) {
       return image_view(rows,cols,this->mStore,this,
-                        rowBegin,colBegin);
+                        rowPos,colPos);
    }
 
    const_elastic_image_view elastic_view(unsigned rows,unsigned cols) const {
@@ -652,6 +704,7 @@ public:
       if(this != &that) {
          // Note: that the ImageStore assignment is what copies all of the data
          mStore = that.mStore;
+         mDefaultView.updateBounds(mStore);
          mDefaultView.resizeAndMove(that.rows(),that.cols(),that.padding(),that.padding());
       }
       return *this;
@@ -677,11 +730,13 @@ public:
 
    void resize(unsigned rows,unsigned cols,unsigned padding) {
       mStore.resize(rows,cols,padding);
+      mDefaultView.updateBounds(mStore);
       mDefaultView.resize(rows,cols);
    }
 
    void resize(unsigned rows,unsigned cols) {
       mStore.resize(rows,cols);
+      mDefaultView.updateBounds(mStore);
       mDefaultView.resize(rows,cols);
    }
 

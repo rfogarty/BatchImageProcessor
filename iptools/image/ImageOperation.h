@@ -2,6 +2,7 @@
 
 #include "RegionOfInterest.h"
 #include "ImageAction.h"
+#include <utility>
 
 ///////////////////////////////////////////////////////////////////////////////
 // Operation - a simple wrapper class that manages an Action type
@@ -12,21 +13,26 @@ template<typename ActionT,typename ImageT = typename ActionT::image_type>
 class Operation {
 private:
    ActionT* mAction;
-   typedef std::vector<RegionOfInterest> RegionsT;
-   RegionsT mRegions;
+   
+   typedef std::pair<RegionOfInterest,ParameterPack> ParameterizedRegionT;
+
+   typedef std::vector<ParameterizedRegionT> ParameterizedRegionsT;
+   ParameterizedRegionsT mRegions;
 
    void operateOnRegions(const ImageT& src,ImageT& tgt) {
       // If no regions defined, assume operation is to operate
       // on entire image
       if(0 == mRegions.size()) {
+         // Call default RegionOfInterest (the whole image); algo uses the default parameters.
          mAction->run(src,tgt,view2roi(src.defaultView()));
       }
       // O.w. iterate all of the given regions
       else {
-         RegionsT::const_iterator pos = mRegions.begin();
-         RegionsT::const_iterator end = mRegions.end();
+         ParameterizedRegionsT::const_iterator pos = mRegions.begin();
+         ParameterizedRegionsT::const_iterator end = mRegions.end();
          for(;pos != end;++pos) {
-            mAction->run(src,tgt,*pos);
+            // Call run with RegionOfInterest and ParameterPack
+            mAction->run(src,tgt,pos->first,pos->second);
          }
       }
    }
@@ -40,16 +46,50 @@ public:
       mAction = 0;
    }
 
-   void addRegion(const RegionOfInterest& roi) {
-      mRegions.push_back(roi);
+   void addRegionAndParameterPack(const RegionOfInterest& roi,const ParameterPack& parameters) {
+      mRegions.push_back(std::make_pair(roi,parameters));
    }
 
+
    ImageT run(const ImageT& src) {
-	   ImageT tgt(src); // Copy construct the target image from the source
+	   ImageT tgt(src); 
       operateOnRegions(src,tgt);
       return tgt;
    }
 };
 
+
+
+// parseROIs - grabs region of interest data from an input stream
+//             and adds it to an abstract Operation type.
+template<typename OperationT>
+void parseROIsAndParameters(OperationT& op,unsigned numParameters,std::istream& ins) {
+
+   while(!ins.eof()) {
+      try {
+         std::string regionID = parseWord<std::string>(ins);
+         if(regionID.size() == 0) break;
+         if(regionID == "ROI:") {
+            unsigned row = parseWord<unsigned>(ins);
+            unsigned col = parseWord<unsigned>(ins);
+            unsigned rows = parseWord<unsigned>(ins);
+            unsigned cols = parseWord<unsigned>(ins);
+            ParameterPack params;
+            for(unsigned i = 0; i < numParameters;++i) params.push_back(parseWord<std::string>(ins));
+            op.addRegionAndParameterPack(RegionOfInterest(rows,cols,row,col),params);
+         }
+         else {
+            // Log error and break
+            std::cerr << "WARNING: expecting literal \"ROI:\" for Region of Interest,\n"
+                      << "WARNNG: but parsed: " << regionID << std::endl;
+            break;
+         }
+      }
+      catch(const ParseError& pe) {
+         std::cerr << "WARNING: trouble decoding Region of Interest.\n"
+                   << "WARNING: processing on image may be incomplete." << std::endl;
+      }
+   }
+}
 
 

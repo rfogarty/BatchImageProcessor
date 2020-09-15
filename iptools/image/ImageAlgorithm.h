@@ -111,6 +111,9 @@ void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
 
+#ifdef DEBUG_BINARIZE_COLOR
+   unsigned count = 0;
+#endif
    for(;spos != send;++spos,++tpos) {
       double diffr = (double)spos->namedColor.red -
                      (double)thresholdBase.namedColor.red;
@@ -119,6 +122,16 @@ void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance
       double diffb = (double)spos->namedColor.blue -
                      (double)thresholdBase.namedColor.blue;
       double distance = std::sqrt(diffr*diffr + diffg*diffg + diffb*diffb);
+
+#ifdef DEBUG_BINARIZE_COLOR
+      if(++count % 10000 == 0) 
+         std::cout << "diffr=" << diffr << " "
+                   << "diffg=" << diffg << " "
+                   << "diffb=" << diffb << " "
+                   << "distance=" << distance << " "
+                   << "thresholdDistance=" << thresholdDistance << " "
+                   << "distance<thresholdDistance=" << (distance < thresholdDistance) << std::endl;
+#endif
 
       if(distance < thresholdDistance) {
          // Anything below the threshold is white
@@ -312,35 +325,91 @@ void uniformSmooth(const SrcImageT &src, TgtImageT &tgt,unsigned windowSize,
    }
 }
 
+/*-----------------------------------------------------------------------**/
+template<typename SrcImageT,typename TgtImageT>
+void scale(const SrcImageT &src, TgtImageT &tgt, float ratio,
+              // This ugly bit is an unnamed argument with a default which means it neither           
+              // contributes to the mangled declaration name nor requires an argument. So what is the 
+              // point? It still participates in SFINAE to help select that this is an appropriate    
+              // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+              // deduction so can't be applied to in parameter directly.                              
+              typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   if(ratio > 1.9f) { // assume ratio is double
+      tgt.resize(src.rows()*2,src.cols()*2);
+      unsigned rows = src.rows()*2;
+      unsigned cols = src.cols()*2;
+      for(unsigned i = 0; i < rows; ++i) {
+         unsigned i2 = i >> 1; // divide by 2
+         for(unsigned j = 0; j < cols; ++j) {
+            unsigned j2 = j >> 1; // divide by 2
+            tgt.pixel(i,j) = src.pixel(i2,j2);
+         }
+      }
+   }
+   else if(ratio < 0.55) { // assume ratio is half
+      typedef typename SrcImageT::pixel_type pixel_type;
+      typedef typename pixel_type::value_type value_type;
+      typedef typename AccumulatorVariableSelect<pixel_type>::type AccumulatorT;
+
+      tgt.resize(src.rows()/2,src.cols()/2);
+      unsigned rows = src.rows() >> 1;
+      unsigned cols = src.cols() >> 1;
+      for(unsigned i = 0; i < rows; ++i) {
+         unsigned i2 = i << 1; // multiply by 2
+         for(unsigned j = 0; j < cols; ++j) {
+            unsigned j2 = j << 1; // multiply by 2
+            // average the values of four pixels
+            AccumulatorT acc = src.pixel(i2,j2).namedColor.gray;
+            acc += src.pixel(i2,j2+1).namedColor.gray;
+            acc += src.pixel(i2+1,j2).namedColor.gray;
+            acc += src.pixel(i2+1,j2+1).namedColor.gray;
+            // Now divide value by 4
+            acc >>= 2;
+            tgt.pixel(i,j).namedColor.gray = static_cast<value_type>(checkValue<pixel_type>(acc));
+         }
+      }
+   }
+}
 
 
-///*-----------------------------------------------------------------------**/
-//void utility::scale(image &src, image &tgt, float ratio)
-//{
-//   int rows = (int)((float)src.getNumberOfRows() * ratio);
-//   int cols  = (int)((float)src.getNumberOfColumns() * ratio);
-//   tgt.resize(rows, cols);
-//   for (int i=0; i<rows; i++)
-//   {
-//      for (int j=0; j<cols; j++)
-//      {   
-//         /* Map the pixel of new image back to original image */
-//         int i2 = (int)floor((float)i/ratio);
-//         int j2 = (int)floor((float)j/ratio);
-//         if (ratio == 2) {
-//            /* Directly copy the value */
-//            tgt.setPixel(i,j,checkValue(src.getPixel(i2,j2)));
-//         }
-//
-//         if (ratio == 0.5) {
-//            /* Average the values of four pixels */
-//            int value = src.getPixel(i2,j2) + src.getPixel(i2,j2+1) + src.getPixel(i2+1,j2) + src.getPixel(i2+1,j2+1);
-//            tgt.setPixel(i,j,checkValue(value/4));
-//         }
-//      }
-//   }
-//}
+////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////
+// Abstract Actions that call above funtions follow
 
+template<typename ImageT>
+class Scale : public Action<ImageT> {
+public:
+   typedef Scale<ImageT> ThisT;
+
+private:
+   float mAmount;
+
+   enum { NUM_PARAMETERS = 1 };
+
+public:
+   Scale(int amount) : mAmount(amount) {}
+
+   virtual ~Scale() {}
+
+   virtual ActionType type() const { return INTENSITY; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   // Note: RegionOfInterest is ignored.
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+      scale(src,tgt,mAmount);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+      fail("scale function does not support regions");
+   }
+
+   static Scale* make(std::istream& ins) {
+      int amount = parseWord<float>(ins);
+      return new Scale<ImageT>(amount);
+   }
+};
 
 
 template<typename ImageT>
@@ -351,16 +420,30 @@ public:
 private:
    int mAmount;
 
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,int amount) {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      add(roi2view(src,roi),tgtview,amount);
+   }
+
+   enum { NUM_PARAMETERS = 1 };
+
 public:
    Intensity(int amount) : mAmount(amount) {}
 
    virtual ~Intensity() {}
 
-   virtual ActionType type() { return INTENSITY; }
+   virtual ActionType type() const { return INTENSITY; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::image_view tgtview = roi2view(tgt,roi);
-      add(roi2view(src,roi),tgtview,mAmount);
+      run(src,tgt,roi,mAmount);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      int amount = parseWord<int>(parameters[0]);
+      run(src,tgt,roi,amount);
    }
 
    static Intensity* make(std::istream& ins) {
@@ -377,16 +460,30 @@ public:
 private:
    unsigned mThreshold;
 
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned threshold) {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      binarize(roi2view(src,roi),tgtview,threshold);
+   }
+
+   enum { NUM_PARAMETERS = 1 };
+
 public:
    Binarize(unsigned threshold) : mThreshold(threshold) {}
    
    virtual ~Binarize() {}
 
-   virtual ActionType type() { return BINARIZE; }
+   virtual ActionType type() const { return BINARIZE; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::image_view tgtview = roi2view(tgt,roi);
-      binarize(roi2view(src,roi),tgtview,mThreshold);
+      run(src,tgt,roi,mThreshold);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      unsigned threshold = parseWord<unsigned>(parameters[0]);
+      run(src,tgt,roi,threshold);
    }
 
    static Binarize* make(std::istream& ins) {
@@ -405,6 +502,13 @@ private:
    unsigned mThresholdLow;
    unsigned mThresholdHigh;
 
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned thresholdLow,unsigned thresholdHigh) {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      binarizeDouble(roi2view(src,roi),tgtview,thresholdLow,thresholdHigh);
+   }
+
+   enum { NUM_PARAMETERS = 2 };
+
 public:
    BinarizeDT(unsigned thresholdLow,unsigned thresholdHigh) : 
       mThresholdLow(thresholdLow),
@@ -413,11 +517,19 @@ public:
 
    virtual ~BinarizeDT() {}
 
-   virtual ActionType type() { return BINARIZE; }
+   virtual ActionType type() const { return BINARIZE; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::image_view tgtview = roi2view(tgt,roi);
-      binarizeDouble(roi2view(src,roi),tgtview,mThresholdLow,mThresholdHigh);
+      run(src,tgt,roi,mThresholdLow,mThresholdHigh);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      unsigned thresholdLow = parseWord<unsigned>(parameters[0]);
+      unsigned thresholdHigh = parseWord<unsigned>(parameters[1]);
+      run(src,tgt,roi,thresholdLow,thresholdHigh);
    }
 
    static BinarizeDT* make(std::istream& ins) {
@@ -439,16 +551,34 @@ private:
    float mThreshold;
    pixel_type mFromPos;
 
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,float threshold,const pixel_type& fromPos) {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      binarizeColor(roi2view(src,roi),tgtview,threshold,fromPos);
+   }
+
+   enum { NUM_PARAMETERS = 4 };
+
 public:
-   BinarizeColor(float threshold,const pixel_type& fromPos) : mThreshold(0), mFromPos(fromPos) {}
+   BinarizeColor(float threshold,const pixel_type& fromPos) : mThreshold(threshold), mFromPos(fromPos) {}
 
    virtual ~BinarizeColor() {}
 
-   virtual ActionType type() { return BINARIZE; }
+   virtual ActionType type() const { return BINARIZE; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::image_view tgtview = roi2view(tgt,roi);
-      binarizeColor(roi2view(src,roi),tgtview,mThreshold,mFromPos);
+      run(src,tgt,roi,mThreshold,mFromPos);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      float threshold = parseWord<float>(parameters[0]);
+      pixel_type fromPos;
+      fromPos.namedColor.red = parseWord<unsigned>(parameters[1]);
+      fromPos.namedColor.green = parseWord<unsigned>(parameters[2]);
+      fromPos.namedColor.blue = parseWord<unsigned>(parameters[3]);
+      run(src,tgt,roi,threshold,fromPos);
    }
 
    static BinarizeColor* make(std::istream& ins) {
@@ -469,16 +599,30 @@ public:
 private:
    unsigned mWindowSize;
 
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned windowSize) {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      uniformSmooth(roi2view(src,roi),tgtview,windowSize);
+   }
+
+   enum { NUM_PARAMETERS = 1 };
+
 public:
    UniformSmooth(unsigned windowSize) : mWindowSize(windowSize) {}
    
    virtual ~UniformSmooth() {}
 
-   virtual ActionType type() { return UNIFORM_SMOOTH; }
+   virtual ActionType type() const { return UNIFORM_SMOOTH; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      typename ImageT::image_view tgtview = roi2view(tgt,roi);
-      uniformSmooth(roi2view(src,roi),tgtview,mWindowSize);
+      run(src,tgt,roi,mWindowSize);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      unsigned windowSize = parseWord<unsigned>(parameters[0]);
+      run(src,tgt,roi,windowSize);
    }
 
    static UniformSmooth* make(std::istream& ins) {
