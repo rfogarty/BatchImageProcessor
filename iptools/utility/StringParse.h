@@ -8,6 +8,8 @@
 // endsWith - checks if a string ends with the suffix
 bool endsWith(const std::string& str, const std::string& suffix);
 
+// startsWith - checks if a string starts with a prefix
+bool startsWith(const std::string& str, const std::string& prefix);
 
 // used to grab metadata row/cols out of PNM format - not really
 // a robust function (so hardly deserving to be its own function)

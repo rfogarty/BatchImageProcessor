@@ -3,6 +3,7 @@
 #include "Image.h"
 #include "ImageAction.h"
 #include "Pixel.h"
+#include "cppTools/Platform.h"
 #include "utility/Error.h"
 #include "utility/StringParse.h"
 #include <cmath>
@@ -13,7 +14,7 @@ template<typename ChannelT,typename ValueT>
 inline ValueT checkValue(ValueT value)
 {
    static const ValueT max = static_cast<ValueT>(ChannelT::traits::max());
-   static const ValueT min = static_cast<ValueT>(ChannelT::traits::max());
+   static const ValueT min = static_cast<ValueT>(ChannelT::traits::min());
    if (value > max) return max;
    if (value < min) return min;
    return value;
@@ -160,25 +161,116 @@ void binarizeDouble(const SrcImageT &src, TgtImageT &tgt, unsigned thresholdLow,
    }
 }
 
-#if 0
-template<typename PixelT,typename AccumulatorT = AccumulatorSelect<PixelT>::type >
-class Accumulator {
-private:
-   typedef ElasticImageView<PixelT> ElasticViewT;
-   ElasticViewT mView;
-   AccumulatorT mAccumulator;
 
-   struct
+
+
+template<typename PixelT,typename ChannelT = typename PixelT::value_type>
+struct AccumulatorVariableSelect { typedef ChannelT type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,unsigned char> { typedef unsigned type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint16_t> { typedef unsigned type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint32_t> { typedef uint64_t type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,signed char> { typedef int type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int16_t> { typedef int type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int32_t> { typedef int64_t type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,float> { typedef double type; };
+
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,double> { typedef double type; };
+
+
+template<typename PixelT,typename AccumulatorVariableTT>
+struct PixelSubtractor {
+   AccumulatorVariableTT& mAccumulator;
+   PixelSubtractor(AccumulatorVariableTT& accumulator) : mAccumulator(accumulator) {}
+   void operator()(const PixelT& pixel) { mAccumulator -= pixel.namedColor.gray; }
+};
+
+template<typename PixelT,typename AccumulatorVariableTT>
+struct PixelAdder {
+   AccumulatorVariableTT& mAccumulator;
+   PixelAdder(AccumulatorVariableTT& accumulator) : mAccumulator(accumulator) {}
+   void operator()(const PixelT& pixel) { mAccumulator += pixel.namedColor.gray; }
+};
+
+
+
+template<typename ImageViewT,
+         typename PixelT = typename ImageViewT::pixel_type,
+         typename AccumulatorVariableT = typename AccumulatorVariableSelect<PixelT>::type >
+class SmoothX {
+private:
+   typedef ElasticImageView<const PixelT>               ConstElasticViewT;
+   typedef PixelSubtractor<PixelT,AccumulatorVariableT> SubtractorT;
+   typedef PixelAdder<PixelT,AccumulatorVariableT>      AdderT;
+
+   ConstElasticViewT    mView;
+   AccumulatorVariableT mAccumulator;
+   SubtractorT          mSubtractor;
+   AdderT               mAdder;
+
 public:
-   double average() {
-      return (double) mAccumulator / mView.size();
+   typedef typename PixelT::value_type value_type;
+
+   SmoothX(const ImageViewT& imageView,unsigned windowSize) : 
+      mView(imageView.elastic_view(1,windowSize)),
+      // Initialize mAccumulator with element 0,0
+      mAccumulator(mView.pixel(0,0).namedColor.gray),
+      mSubtractor(mAccumulator),
+      mAdder(mAccumulator)
+   {}
+
+   value_type average() {
+      // Do all smoothing in double math
+      return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mAccumulator / mView.size())));
    }
 
    void operator++() {
-      mView.shiftRight();
+      mView.moveRight(mSubtractor,mAdder);
+   }
+};
+
+template<typename ImageViewT,
+         typename PixelT = typename ImageViewT::pixel_type,
+         typename AccumulatorVariableT = typename AccumulatorVariableSelect<PixelT>::type >
+class SmoothY {
+private:
+   typedef ElasticImageView<const PixelT>               ConstElasticViewT;
+   typedef PixelSubtractor<PixelT,AccumulatorVariableT> SubtractorT;
+   typedef PixelAdder<PixelT,AccumulatorVariableT>      AdderT;
+
+   ConstElasticViewT    mView;
+   AccumulatorVariableT mAccumulator;
+   SubtractorT          mSubtractor;
+   AdderT               mAdder;
+
+public:
+   typedef typename PixelT::value_type value_type;
+
+   SmoothY(const ImageViewT& imageView,unsigned windowSize) : 
+      mView(imageView.elastic_view(windowSize,1)),
+      // Initialize mAccumulator with element 0,0
+      mAccumulator(mView.pixel(0,0).namedColor.gray),
+      mSubtractor(mAccumulator),
+      mAdder(mAccumulator)
+   {}
+
+   value_type average() {
+      // Do all smoothing in double math
+      return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mAccumulator / mView.size())));
+      //return (double) mAccumulator / mView.size();
    }
 
+   void operator++() {
+      mView.moveDown(mSubtractor,mAdder);
+   }
 };
+
 
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
@@ -190,28 +282,57 @@ void uniformSmooth(const SrcImageT &src, TgtImageT &tgt,unsigned windowSize,
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
+   reportIfNotLessThan("windowSize",2u,windowSize);
+   reportIfNotEqual("windowSize (which should be odd)",windowSize-1,((windowSize >> 1u) << 1u));
+   reportIfNotEqual("src.rows() != tgt.rows()",src.rows(),tgt.rows());
+   reportIfNotEqual("src.cols() != tgt.cols()",src.cols(),tgt.cols());
+
+   unsigned rows = src.rows();
+   unsigned cols = src.cols();
+
+   // We can write out result to iterator operating over entire passed Image or ImageView
+   // since the iteration order is exactly the same as our loops.
    typename TgtImageT::iterator tpos = tgt.begin();
 
-   reportIfNotLessThan("windowSize",2u,windowSize);
-   reportIfNotEqual("windowSize (which should be odd)",windowSize,((windowSize >> 1u) << 1u));
+   // Start by smoothing along X for each row
+   for(unsigned i = 0;i < rows;++i) {
+      typedef SmoothX<SrcImageT> SmoothXT;
+      typedef typename SrcImageT::image_view RowViewT;
+      // NOTE: importantly views on which an ElasticImageView is based must
+      // exist for the life of the ElasticImageView
+      
+      RowViewT rowView(src.view(1,cols,i));
+      SmoothXT smoothX(rowView,windowSize);
+      // We always start with the first answer precomputed
+      // which also implies we will only iterate and shift cols-1 times.
+      tpos->namedColor.gray = smoothX.average();
+      ++tpos;
+      for(unsigned j = 1;j < cols;++j,++tpos) {
+         ++smoothX;
+         tpos->namedColor.gray = smoothX.average();
+      }
+   }
 
-   // Start by operating on border of region ("Adaptive box size")
-   // starting with the smallest window size and growing as we move out to the largest window
-   // size available.
-
-   // Maybe instead I should come up with an elastic or shrinkable window
-   //
-
-   // Start by creating a view that is equal to the window size.
-   
-
-   for(;spos != send;++spos,++tpos) {
-
+   typedef typename TgtImageT::image_view ColumnViewT; // not strictly a Column type, but will be
+                                                       // parameterized below to operate as one.
+   typedef typename ColumnViewT::iterator ColumnIteratorT;
+   // In this case our iteration order is flipped, and since we don't have a column-first
+   // iterator type, we just need to create column views to write out our output.
+   for(unsigned j = 0; j < cols; ++j) {
+      typedef SmoothY<TgtImageT> SmoothYT;
+      ColumnViewT columnView(tgt.view(rows,1,0,j));
+      SmoothYT smoothY(columnView,windowSize);
+      ColumnIteratorT cpos = columnView.begin();
+      // As above, we always start with the first answer precomputed
+      // which also implies we will only iterate and shift rows-1 times.
+      cpos->namedColor.gray = smoothY.average();
+      ++cpos;
+      for(unsigned i = 1;i < rows;++i,++cpos) {
+         ++smoothY;
+         cpos->namedColor.gray = smoothY.average();
+      }
    }
 }
-#endif
 
 
 
@@ -359,6 +480,32 @@ public:
       fromPos.namedColor.green = parseWord<unsigned>(ins);
       fromPos.namedColor.blue = parseWord<unsigned>(ins);
       return new BinarizeColor<ImageT>(threshold,fromPos);
+   }
+};
+
+template<typename ImageT>
+class UniformSmooth : public Action<ImageT> {
+public:
+   typedef UniformSmooth<ImageT> ThisT;
+
+private:
+   unsigned mWindowSize;
+
+public:
+   UniformSmooth(unsigned windowSize) : mWindowSize(windowSize) {}
+   
+   virtual ~UniformSmooth() {}
+
+   virtual ActionType type() { return UNIFORM_SMOOTH; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      uniformSmooth(roi2view(src,roi),tgtview,mWindowSize);
+   }
+
+   static UniformSmooth* make(std::istream& ins) {
+      unsigned windowSize = parseWord<unsigned>(ins);
+      return new UniformSmooth<ImageT>(windowSize);
    }
 };
 

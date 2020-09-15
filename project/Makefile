@@ -1,15 +1,18 @@
-#all:
-	#cd ../iptools; make
-#	g++ -o bin/test test.cpp  -L ../lib -l iptools 
-#	g++ -o bin/test2 test2.cpp  -L ../lib -l iptools -l mpeg 
-
-	# source files.
 
 BIN_DIR=bin/
 
 EXEC = iptool
 TEST_EXEC = testImage
 
+# compiler
+CCC = g++
+#CCC = clang++
+
+# C++ compiler flags (-g -O2 -Wall)
+CCFLAGS = -std=c++03 -g3 -ggdb -O0 -DFAIL_WITH_ASSERT -Wall -Wpedantic -Werror
+#CCFLAGS = -std=c++03 -g3 -ggdb -O0 -Wall -Wpedantic -Werror
+#CCFLAGS = -std=c++03 -O2 -march=native -Wall -Wpedantic -Werror
+#CCFLAGS = -std=c++17 -O2 -march=native -Wall -Wpedantic -Werror
 
 all: $(EXEC) $(TEST_EXEC)
 
@@ -20,12 +23,9 @@ clean:
 	$(RM) $(BIN_DIR)$(EXEC)
 	(cd ../iptools; make clean)
 
-#DO_EXEC = g++ -Wall -Wpedantic -Werror -std=c++03 -g3 -O0 -ggdb -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
-DO_EXEC = g++ -Wall -Wpedantic -Werror -std=c++03 -O2 -march=native -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
-#DO_EXEC = clang++ -Wall -Wpedantic -Werror -std=c++03 -O2 -march=native -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
-#DO_EXEC = g++ -Wall -Wpedantic -Werror -std=c++17 -O2 -march=native -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+DO_EXEC = $(CCC) $(CCFLAGS) -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
-DO_TEST = g++ -Wall -Wpedantic -Werror -std=c++03 -O2 -march=native -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+DO_TEST = $(CCC) $(CCFLAGS) -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
 
 #------ now compile
 $(EXEC):   		iptools

@@ -33,8 +33,9 @@ public:
 // 3) Actual size of the image is not stored within this class, as that data
 //    is not needed.
 //
-template<typename PixelT>
-class ImageStore : public ImageBounds<PixelT> {
+template<typename PixelT,
+         typename ImageBoundsT = ImageBounds<typename std::remove_const<PixelT>::type> >
+class ImageStore : public ImageBoundsT {
 public:
    typedef typename std::remove_const<PixelT>::type pixel_type;
    typedef ImageStore<PixelT> this_type;
@@ -76,13 +77,13 @@ public:
       resize(rows,cols,mPadding);
    }
 
-   unsigned rows() const { return mAllocatedRows; }
+   virtual unsigned rows() const { return mAllocatedRows; }
 
-   unsigned cols() const { return mAllocatedCols; }
+   virtual unsigned cols() const { return mAllocatedCols; }
 
-   unsigned rowBegin() const { return 0u; }
+   virtual unsigned rowBegin() const { return 0u; }
 
-   unsigned colBegin() const { return 0u; }
+   virtual unsigned colBegin() const { return 0u; }
 
    unsigned padding() const { return mPadding; }
 
@@ -108,7 +109,7 @@ public:
 template<typename PixelT,
          typename ImageStoreT  = ImageStore<typename std::remove_const<PixelT>::type>,
          typename ImageBoundsT = ImageBounds<typename std::remove_const<PixelT>::type> >
-class ImageWindow : public ImageBounds<PixelT> {
+class ImageWindow : public ImageBoundsT {
 public:
    typedef typename std::remove_const<PixelT>::type pixel_type;
    typedef ImageWindow<PixelT,ImageStoreT>          this_type;
@@ -139,8 +140,8 @@ protected:
       mStore(store),
       mBounds(bounds) {
       // Ensure that this ImageWindow is valid, and throw exception if not
-      reportIfNotLessThan("rowBegin+rows",rowBegin + rows,mBounds->rows()+1);
-      reportIfNotLessThan("colBegin+cols",colBegin + cols,mBounds->cols()+1);
+      reportIfNotLessThan("rowBegin+rows",rowBegin + rows,mBounds->rowBegin()+mBounds->rows()+1);
+      reportIfNotLessThan("colBegin+cols",colBegin + cols,mBounds->colBegin()+mBounds->cols()+1);
    }
 
    // Copy-constructible only via derivatives
@@ -195,15 +196,15 @@ public:
       mSize = rows*cols;
    }
 
-   unsigned rows() const { return mRows; }
+   virtual unsigned rows() const { return mRows; }
 
-   unsigned cols() const { return mCols; }
+   virtual unsigned cols() const { return mCols; }
 
    unsigned size() const { return mSize; }
 
-   unsigned rowBegin() const { return mRowBegin; }
+   virtual unsigned rowBegin() const { return mRowBegin; }
 
-   unsigned colBegin() const { return mColBegin; }
+   virtual unsigned colBegin() const { return mColBegin; }
 
    void move(unsigned rowBegin,unsigned colBegin) {
       reportIfNotLessThan("rowBegin+mRows",rowBegin + mRows,mBounds->rows()+1);
@@ -320,7 +321,7 @@ private:
    
 
    template<typename DepartedListener,typename EnteredListener>
-   void shiftCol(const DepartedListener& departedListener,const EnteredListener& enteredListener) {
+   void shiftCol(DepartedListener& departedListener,EnteredListener& enteredListener) {
       
       unsigned oldStart = mColPos - mElasticHalfWindowCols; // inclusive
       unsigned oldEnd   = mColPos + mElasticHalfWindowCols; // also inclusive
@@ -352,20 +353,20 @@ private:
 
       for(unsigned r = rowBegin;r <= rowEnd;++r) {
          for(unsigned c = oldStart;c < newStart;++c) {
-            departed(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+            departedListener(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
          }
       }
 
       // Send entered
       for(unsigned r = rowBegin;r <= rowEnd;++r) {
          for(unsigned c = oldEnd + 1;c <= newEnd;++c) {
-            entered(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+            enteredListener(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
          }
       }
    }
 
    template<typename DepartedListener,typename EnteredListener>
-   void shiftRow(const DepartedListener& departedListener,const EnteredListener& enteredListener) {
+   void shiftRow(DepartedListener& departedListener,EnteredListener& enteredListener) {
       
       unsigned oldStart = mRowPos - mElasticHalfWindowRows; // inclusive
       unsigned oldEnd   = mRowPos + mElasticHalfWindowRows; // also inclusive
@@ -397,13 +398,13 @@ private:
 
       for(unsigned r = oldStart;r < newStart;++r) {
          for(unsigned c = colBegin;c <= colEnd;++c) {
-            departed(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+            departedListener(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
          }
       }
 
       for(unsigned r = oldEnd + 1;r <= newEnd;++r) {
-         for(unsigned c = colBegin;c <= colEnd;++r) {
-            entered(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
+         for(unsigned c = colBegin;c <= colEnd;++c) {
+            enteredListener(mStore->pixel(mBounds->rowBegin()+r,mBounds->colBegin()+c));
          }
       }
    }
@@ -418,31 +419,34 @@ public:
       mRowPos(0),
       mColPos(0),
       mStore(store),
-      mBounds(bounds)
-   {}
+      mBounds(bounds) {
+      // Ensure rows and columns is at least 1 or greater!
+      reportIfNotLessThan("rows",0u,rows);
+      reportIfNotLessThan("cols",0u,cols);
+   }
 
-   const pixel_type& pixel(unsigned row, unsigned col) const {
+   const PixelT& pixel(unsigned row, unsigned col) const {
       // Verify that the requested pixel is within the bounds of the ImageWindow
       reportIfNotLessThan("row",row,rows());
       reportIfNotLessThan("col",col,cols());
       unsigned rowOffset = mRowPos - mElasticHalfWindowRows + row;
       unsigned colOffset = mColPos - mElasticHalfWindowCols + col;
-      return mStore->pixel(rowOffset+mBounds->rowBegin(),colOffset+mBounds()->colBegin());
+      return mStore->pixel(rowOffset+mBounds->rowBegin(),colOffset+mBounds->colBegin());
    }
 
-   pixel_type& pixel(unsigned row, unsigned col) {
+   PixelT& pixel(unsigned row, unsigned col) {
       // Note: if ImageWindow PixelT is a const type, the below const_cast is a no-op.
       return const_cast<PixelT&>(static_cast<const this_type&>(*this).pixel(row,col));
    }
 
    template<typename DepartedListener,typename EnteredListener>
-   void moveRight(const DepartedListener& departedListener,const EnteredListener& enteredListener) {
+   void moveRight(DepartedListener& departedListener,EnteredListener& enteredListener) {
       reportIfNotLessThan("cols",mColPos+1,mBounds->cols());
       shiftCol(departedListener,enteredListener);
    }
 
    template<typename DepartedListener,typename EnteredListener>
-   void moveDown(const DepartedListener& departedListener,const EnteredListener& enteredListener) {
+   void moveDown(DepartedListener& departedListener,EnteredListener& enteredListener) {
       reportIfNotLessThan("rows",mRowPos+1,mBounds->rows());
       shiftRow(departedListener,enteredListener);
    }
@@ -504,7 +508,7 @@ public:
              image_store* store,
              image_bounds* bounds,
              unsigned rowBegin = 0, unsigned colBegin = 0) :
-      image_window(rows,cols,store,bounds,rowBegin,colBegin)
+      image_window(rows,cols,store,bounds,rowBegin+bounds->rowBegin(),colBegin+bounds->colBegin())
    {}
 
    ImageView& operator=(const ImageView& that) {
@@ -539,7 +543,7 @@ public:
       return const_image_view(rows,cols,
                              // Although Views can be made const, it does not make sense to have
                              // a const ImageStore or ImageBounds type.
-                             const_cast<typename std::remove_const<image_store>::type*>(&this->mStore),
+                             const_cast<typename std::remove_const<image_store>::type*>(this->mStore),
                              const_cast<typename std::remove_const<image_bounds>::type*>(static_cast<const image_bounds*>(this)),
                              rowBegin,colBegin);
    }
@@ -549,20 +553,20 @@ public:
    image_view view(unsigned rows,unsigned cols,
                    unsigned rowBegin = 0,unsigned colBegin = 0) {
       return image_view(rows,cols,this->mStore,this,
-                        rowBegin+this->mRowBegin,colBegin+this->mColBegin);
+                        rowBegin,colBegin);
    }
 
-   const_elastic_image_view view(unsigned rows,unsigned cols) const {
+   const_elastic_image_view elastic_view(unsigned rows,unsigned cols) const {
       return const_elastic_image_view(rows,cols,
                              // Although Views can be made const, it does not make sense to have
                              // a const ImageStore or ImageBounds type.
-                             const_cast<typename std::remove_const<image_store>::type*>(&this->mStore),
+                             const_cast<typename std::remove_const<image_store>::type*>(this->mStore),
                              const_cast<typename std::remove_const<image_bounds>::type*>(static_cast<const image_bounds*>(this)));
    }
 
 
    // take a subview of the view
-   elastic_image_view view(unsigned rows,unsigned cols) { return elastic_image_view(rows,cols,this->mStore,this); }
+   elastic_image_view elastic_view(unsigned rows,unsigned cols) { return elastic_image_view(rows,cols,this->mStore,this); }
 
    iterator begin() { return iterator::begin(this); }
    

@@ -202,7 +202,34 @@ void testViewIteratorGrayscale() {
 }
 
 
+#if 0
+void testElasticViewGrayscale() {
+   typedef GrayAlphaPixel<uint16_t> PixelT;
+   typedef Image<PixelT> ImageT;
+   typedef typename ImageT::image_view ViewT;
+   typedef typename ViewT::iterator IteratorT;
 
+   ImageT image(15u,15u);
+
+   IteratorT pos = image.begin();
+   IteratorT end = image.end();
+   for(unsigned i = 0;pos != end;++pos,++i) {
+   }
+
+   ViewT view = image.view(300u,300u,100u,200u);
+
+   IteratorT pos = view.begin();
+   IteratorT end = view.end();
+   unsigned iterations = 0;
+   unsigned size = view.size();
+   for(;pos != end;++pos,++iterations) {
+      pos->namedColor.gray = (unsigned char)((double)iterations*255.0/size);
+   }
+   reportIfNotEqual("view.size() == iterations",iterations,view.size());
+
+
+}
+#endif
 
 void createColorImage() {
 

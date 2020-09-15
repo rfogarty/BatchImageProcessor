@@ -3,9 +3,17 @@
 
 
 bool endsWith(const std::string& str, const std::string& suffix) {
-   return str.size() >= suffix.size() && 
-          0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix);
+   // Extra parans aren't needed but added for reader clarification
+   return (str.size() >= suffix.size()) && 
+          (0 == str.compare(str.size()-suffix.size(), suffix.size(), suffix));
 }
+
+bool startsWith(const std::string& str, const std::string& prefix) {
+   // Extra parans aren't needed but added for reader clarification
+   return (str.size() >= prefix.size()) && 
+          (0 == str.compare(0, prefix.size(), prefix));
+}
+
 
 // This operation is specifically targeted at reading metadata from the
 //    PNM format, and is a little ugly, but tries to be resilient to comments. 

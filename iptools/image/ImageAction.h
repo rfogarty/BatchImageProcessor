@@ -11,7 +11,8 @@ enum ActionType {
    INTENSITY,
    BINARIZE,
    BINARIZE_DT,
-   SCALE
+   SCALE,
+   UNIFORM_SMOOTH
 };
 
 ///////////////////////////////////////////////////////////////////////////////

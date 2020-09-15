@@ -38,7 +38,8 @@ void parseAndRunOperation(const std::string& line) {
 
    using namespace algorithm;
    
-   if(endsWith(inputfile,".pgm")) {
+   if(startsWith(inputfile,"#")); // commented line, so do nothing
+   else if(endsWith(inputfile,".pgm")) {
       if(!endsWith(outputfile,".pgm")) {
           std::cerr << "ERROR: on line: " << line << "\n"
                     << "ERROR: currently processing doesn't support different input and output file types" << std::endl;
@@ -61,6 +62,9 @@ void parseAndRunOperation(const std::string& line) {
          }
          else if(operation == "binarizeDT") {
             action = BinarizeDT<ImageT>::make(ss);
+         }
+         else if(operation == "uniformSmooth") {
+            action = UniformSmooth<ImageT>::make(ss);
          }
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
