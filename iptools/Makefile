@@ -28,6 +28,7 @@ LDFLAGS = -g
 	$(CCC) $(INCLUDES) $(CCFLAGS) -c $< -o $@
 
 $(OUT): $(OBJ)
+	@mkdir -p ../lib
 	ar rcs $(OUT) $(OBJ)
 
 clean:
