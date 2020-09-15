@@ -1,0 +1,9 @@
+SGF.pgm SGF_bi50_150.pgm binarizeDT 50 150
+SGF.pgm SGF_bi50_200.pgm binarizeDT 50 200 ROI: 20 30 100 100 ROI: 200 200 200 200 ROI: 500 500 200 300
+SGF.pgm SGF_smooth_all.pgm uniformSmooth 13
+SGF.pgm SGF_smooth.pgm uniformSmooth 13 ROI: 20 30 100 100 ROI: 200 200 200 200 ROI: 500 500 200 300
+SGF.pgm SGF_bi80_220.pgm binarizeDT 80 220
+SGF.pgm SGF_bi80.pgm binarize 80
+SGF.pgm SGF_add50.pgm add 50
+SGF.pgm SGF_s200.pgm scale 2
+SGF.pgm SGF_s50.pgm scale 0.5

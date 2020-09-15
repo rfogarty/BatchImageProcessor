@@ -1,0 +1,6 @@
+baboon.pgm baboon_bi50_150.pgm binarizeDT 50 150
+baboon.pgm baboon_bi100_200.pgm binarizeDT 100 200
+baboon.pgm baboon_bi125.pgm binarize 125
+baboon.pgm baboon_add50.pgm add 50
+baboon.pgm baboon_s200.pgm scale 2
+baboon.pgm baboon_s50.pgm scale 0.5

@@ -1,0 +1,7 @@
+SGF.ppm SGF_bi50_150.ppm binarizeDT 50 150
+SGF.ppm SGF_bi50_200.ppm binarizeDT 50 200
+SGF.ppm SGF_bi80_220.ppm binarizeDT 80 220
+SGF.ppm SGF_bi125.ppm binarize 125
+SGF.ppm SGF_add50.ppm add 50
+SGF.ppm SGF_s200.ppm scale 2
+SGF.ppm SGF_s50.ppm scale 0.5
