@@ -21,6 +21,7 @@ iptools:
 
 clean:
 	$(RM) $(BIN_DIR)$(EXEC)
+	$(RM) $(BIN_DIR)$(TEST_EXEC)
 	(cd ../iptools; make clean)
 
 DO_EXEC = $(CCC) $(CCFLAGS) -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
