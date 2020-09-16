@@ -1,21 +1,11 @@
-Design strategy
+Future TODOs
 ===============
-
-* Image types are all based on abstract template types. So none of the images actually have
- a defined type until the very last minute.
-* The hope is that algorithms can also operate as generically as possible, and thus work on
- abstract types.
-
-* For converting between image types, there are really 3 things to consider:
+* Should have conversion functions between image and pixel types.
+** For converting between image types, there are really 3 things to consider:
    1) Channel bitdepth or resolution
    2) Color, grayscale, or other format (HSI/HSL/HSV, CMYK, etc.)
    3) Actual image format, which is really a separate issue and should be resolved in the writing functions
 
-* Should have conversion functions between pixel types.
-DONE * Move MAX and MIN values into the Pixel types, to ensure algorithms can be made generic.
-DONE ** Perhaps even a simple min and max function can be supplied.
-DONE * Smoothing function needs to be done.
-DONE * Add scaling function back in - maybe look at doing FFT-based solution for arbitrary scaling.
 
 
 HW#1
@@ -46,7 +36,7 @@ DONE   b. Add color binarization option to your image processing toolbox. Let th
       ROI with different parameters for each ROI. [3 points]
 
 4. Write the report for this assignment
-   a. Create a "readme" file specifying format of the parameter file, describe all parameters and all run options (include
+DONE   a. Create a "readme" file specifying format of the parameter file, describe all parameters and all run options (include
       in the report).
    b. Give an example of the parameter file set to process with several images with varying functions and parameters.
    c. Describe all operations and your implementation.
