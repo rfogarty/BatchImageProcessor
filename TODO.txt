@@ -5,6 +5,8 @@ Future TODOs
    1) Channel bitdepth or resolution
    2) Color, grayscale, or other format (HSI/HSL/HSV, CMYK, etc.)
    3) Actual image format, which is really a separate issue and should be resolved in the writing functions
+* Test with AddressSanitizer to ensure absolutely no bad memory accesses
+* Test with Valgrind to ensure no memory leaks or bad array indexing
 
 
 

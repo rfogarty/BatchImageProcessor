@@ -3,6 +3,7 @@
 *.a
 *.pgm
 *.ppm
+*.png
 
 iptool
 testImage

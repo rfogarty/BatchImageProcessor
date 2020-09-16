@@ -1,21 +1,43 @@
 # Grayscale processing
-SGF.pgm SGF_bi50_150.pgm binarizeDT 50 150
-SGF.pgm SGF_bi50_200.pgm binarizeDT 50 200 ROI: 20 30 100 100 50 200 ROI: 200 200 200 200 20 100 ROI: 500 500 200 300 100 180
-SGF.pgm SGF_smooth_all.pgm uniformSmooth 13
-SGF.pgm SGF_smooth.pgm uniformSmooth 13 ROI: 20 30 100 100 7 ROI: 200 200 200 200 51 ROI: 500 500 200 300 81
-SGF.pgm SGF_bi80_220.pgm binarizeDT 80 220
-SGF.pgm SGF_bi80.pgm binarize 80
-SGF.pgm SGF_add50.pgm add 50
-SGF.pgm SGF_s200.pgm scale 2
-SGF.pgm SGF_s50.pgm scale 0.5
-CaptainUnderpants.pgm CaptainUnderpants_bin.pgm binarizeDT 25 150
-MadeiraBeachSunset.pgm MadeiraBeachSunset_smooth.pgm uniformSmooth 13 ROI: 1060 0 500 2080 15
-MadeiraBeachSunset.pgm MadeiraBeachSunset_binrois.pgm binarizeDT 60 175 ROI: 1060 0 500 2080 60 175 ROI: 0 0 1060 2080 120 150
+SGF_bw.pgm SGF_bindt_var.pgm binarizeDT 50 200 ROI: 20 30 100 100 50 200 ROI: 200 200 200 200 20 100 ROI: 500 500 200 300 100 180
+SGF_bw.pgm SGF_smooth_all.pgm uniformSmooth 13
+SGF_bw.pgm SGF_smooth_roi.pgm uniformSmooth 13 ROI: 20 30 100 100 7 ROI: 200 200 200 200 51 ROI: 500 500 200 300 81
+SGF_bw.pgm SGF_s200.pgm scale 2
+SGF_bw.pgm SGF_s50.pgm scale 0.5
+CaptainUnderpants_bw.pgm CaptainUnderpants_bin.pgm binarizeDT 25 150
+MadeiraBeachSunset_bw.pgm MadeiraBeachSunset_smooth.pgm uniformSmooth 13 ROI: 1060 0 500 2080 15
+MadeiraBeachSunset_bw.pgm MadeiraBeachSunset_binrois.pgm binarizeDT 60 175 ROI: 1060 0 500 2080 60 175 ROI: 0 0 1060 2080 120 150
 
 # Color processing
-SGF.ppm SGF_add50.ppm add 50 ROI: 100 100 100 100 20 ROI: 200 250 100 100 40 ROI: 300 400 100 100 70 ROI: 400 550 100 100 95 ROI: 500 700 100 100 120 ROI: 600 850 100 100 160
-SGF.ppm SGF_binarizeColor.ppm binarizeColor 50.0 100 100 100
-SGF.ppm SGF_binarizeColor_roi.ppm binarizeColor 50.0 100 100 100 ROI: 50 100 300 300 100.0 60 60 60 ROI: 200 250 350 350 20.0 150 150 150 ROI: 350 450 360 400 150.0 200 80 80
-CaptainUnderpants.ppm CaptainUnderpants_bin.ppm binarizeColor 100.0 120 120 20
-MadeiraBeachSunset.ppm MadeiraBeachSunset_brighten.ppm add 30 ROI: 0 0 780 1040 20 ROI: 0 1040 780 1040 40 ROI: 780 1040 780 1040 80 ROI: 780 0 780 1040 60
+SGF_color.ppm SGF_addvar.ppm add 50 ROI: 100 100 100 100 20 ROI: 200 250 100 100 40 ROI: 300 400 100 100 70 ROI: 400 550 100 100 95 ROI: 500 700 100 100 120 ROI: 600 850 100 100 160
+SGF_color.ppm SGF_binarizeColor.ppm binarizeColor 50.0 100 100 100
+SGF_color.ppm SGF_binarizeColor_roi.ppm binarizeColor 50.0 100 100 100 ROI: 50 100 300 300 100.0 60 60 60 ROI: 200 250 350 350 20.0 150 150 150 ROI: 350 450 360 400 150.0 200 80 80
+CaptainUnderpants_color.ppm CaptainUnderpants_bin.ppm binarizeColor 100.0 120 120 20
+MadeiraBeachSunset_color.ppm MadeiraBeachSunset_brighten.ppm add 30 ROI: 0 0 780 1040 20 ROI: 0 1040 780 1040 40 ROI: 780 1040 780 1040 80 ROI: 780 0 780 1040 60
+
+# Grayscale processing for HW0
+#SGF.pgm SGF_bi50_150.pgm binarizeDT 50 150
+#SGF.pgm SGF_bi50_200.pgm binarizeDT 50 200
+#SGF.pgm SGF_bi80_220.pgm binarizeDT 80 220
+#SGF.pgm SGF_bi80.pgm binarize 80
+#SGF.pgm SGF_add50.pgm add 50
+#SGF.pgm SGF_s200.pgm scale 2
+#SGF.pgm SGF_s50.pgm scale 0.5
+
+# Color processing for HW0
+#SGF.ppm SGF_bi50_150.ppm binarizeDT 50 150
+#SGF.ppm SGF_bi50_200.ppm binarizeDT 50 200
+#SGF.ppm SGF_bi80_220.ppm binarizeDT 80 220
+#SGF.ppm SGF_bi125.ppm binarize 125
+#SGF.ppm SGF_add50.ppm add 50
+#SGF.ppm SGF_s200.ppm scale 2
+#SGF.ppm SGF_s50.ppm scale 0.5
+
+# Original example set (provided by TA Tim)
+#baboon.pgm baboon_bi50_150.pgm binarizeDT 50 150
+#baboon.pgm baboon_bi100_200.pgm binarizeDT 100 200
+#baboon.pgm baboon_bi125.pgm binarize 125
+#baboon.pgm baboon_add50.pgm add 50
+#baboon.pgm baboon_s200.pgm scale 2
+#baboon.pgm baboon_s50.pgm scale 0.5
 
