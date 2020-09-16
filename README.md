@@ -96,7 +96,7 @@ identify multiple ROI sections and parameters.
 | Intensity          | add           | <amount (int)>                                        | brighten or darken a grayscale image.
 | Binarization       | binarize      | <threshold (unsigned)>                                | binarize the pixels with the threshold.
 | BinarizationRange  | binarizeDT    | <thresholdLow (unsigned)> <thresholdHigh (unsigned)>  | binarize the pixels with 2 thresholds.
-| Resize[^1]         | scale         | <0.5 or 2.0 (float)>                                  | double or halve the size of an image.
+| Resize [^1]        | scale         | <0.5 or 2.0 (float)>                                  | double or halve the size of an image.
 | Smooth             | uniformSmooth | <windowSize (odd,unsigned)>                           | smooth an image using uniform box.
 
 
@@ -106,9 +106,8 @@ identify multiple ROI sections and parameters.
 ### Color images (.ppm)
 
 | Short Description  | Function Name |                    Parameters                         |          Long Description
-|--------------------|---------------|-------------------------------------------------------|----------------------------------------
+|--------------------|---------------|-------------------------------------------------------|----------------------------------------------------------------
 | Add                | add           | <amount (int)>                                        | brighten or darken a color image.
-| Binarization       | binarizeColor | <threshold (float)> <red green blue (3x unsigned)>    | binarize the pixels with threshold 
-|                    |               |                                                       |    distance from coordinate RGB
+| Binarization       | binarizeColor | <threshold (float)>  <red green blue (3x unsigned)>   | binarize the pixels with threshold distance from coordinate RGB
 
 
