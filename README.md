@@ -107,7 +107,7 @@ identify multiple ROI sections and parameters.
 
 | Short Description  | Function Name |                    Parameters                         |          Long Description
 |--------------------|---------------|-------------------------------------------------------|----------------------------------------------------------------
-| Add                | add           | <amount (int)>                                        | brighten or darken a color image.
+| Intensity          | add           | <amount (int)>                                        | brighten or darken a color image.
 | Binarization       | binarizeColor | <threshold (float)>  <red green blue (3x unsigned)>   | binarize the pixels with threshold distance from coordinate RGB
 
 
