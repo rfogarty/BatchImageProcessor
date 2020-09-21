@@ -99,7 +99,7 @@ void binarize(const SrcImageT &src, TgtImageT &tgt, unsigned threshold,
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
 void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance,
-                   const typename SrcImageT::pixel_type& thresholdBase,
+                   const typename SrcImageT::pixel_type& referenceColor,
                    // This ugly bit is an unnamed argument with a default which means it neither           
                    // contributes to the mangled declaration name nor requires an argument. So what is the 
                    // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -116,11 +116,11 @@ void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance
 #endif
    for(;spos != send;++spos,++tpos) {
       double diffr = (double)spos->namedColor.red -
-                     (double)thresholdBase.namedColor.red;
+                     (double)referenceColor.namedColor.red;
       double diffg = (double)spos->namedColor.green -
-                     (double)thresholdBase.namedColor.green;
+                     (double)referenceColor.namedColor.green;
       double diffb = (double)spos->namedColor.blue -
-                     (double)thresholdBase.namedColor.blue;
+                     (double)referenceColor.namedColor.blue;
       double distance = std::sqrt(diffr*diffr + diffg*diffg + diffb*diffb);
 
 #ifdef DEBUG_BINARIZE_COLOR
@@ -549,17 +549,17 @@ public:
 
 private:
    float mThreshold;
-   pixel_type mFromPos;
+   pixel_type mReferenceColor;
 
-   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,float threshold,const pixel_type& fromPos) {
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,float threshold,const pixel_type& referenceColor) {
       typename ImageT::image_view tgtview = roi2view(tgt,roi);
-      binarizeColor(roi2view(src,roi),tgtview,threshold,fromPos);
+      binarizeColor(roi2view(src,roi),tgtview,threshold,referenceColor);
    }
 
    enum { NUM_PARAMETERS = 4 };
 
 public:
-   BinarizeColor(float threshold,const pixel_type& fromPos) : mThreshold(threshold), mFromPos(fromPos) {}
+   BinarizeColor(float threshold,const pixel_type& referenceColor) : mThreshold(threshold), mReferenceColor(referenceColor) {}
 
    virtual ~BinarizeColor() {}
 
@@ -568,26 +568,26 @@ public:
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
-      run(src,tgt,roi,mThreshold,mFromPos);
+      run(src,tgt,roi,mThreshold,mReferenceColor);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
       reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
       float threshold = parseWord<float>(parameters[0]);
-      pixel_type fromPos;
-      fromPos.namedColor.red = parseWord<unsigned>(parameters[1]);
-      fromPos.namedColor.green = parseWord<unsigned>(parameters[2]);
-      fromPos.namedColor.blue = parseWord<unsigned>(parameters[3]);
-      run(src,tgt,roi,threshold,fromPos);
+      pixel_type referenceColor;
+      referenceColor.namedColor.red = parseWord<unsigned>(parameters[1]);
+      referenceColor.namedColor.green = parseWord<unsigned>(parameters[2]);
+      referenceColor.namedColor.blue = parseWord<unsigned>(parameters[3]);
+      run(src,tgt,roi,threshold,referenceColor);
    }
 
    static BinarizeColor* make(std::istream& ins) {
       float threshold = parseWord<float>(ins);
-      pixel_type fromPos;
-      fromPos.namedColor.red = parseWord<unsigned>(ins);
-      fromPos.namedColor.green = parseWord<unsigned>(ins);
-      fromPos.namedColor.blue = parseWord<unsigned>(ins);
-      return new BinarizeColor<ImageT>(threshold,fromPos);
+      pixel_type referenceColor;
+      referenceColor.namedColor.red = parseWord<unsigned>(ins);
+      referenceColor.namedColor.green = parseWord<unsigned>(ins);
+      referenceColor.namedColor.blue = parseWord<unsigned>(ins);
+      return new BinarizeColor<ImageT>(threshold,referenceColor);
    }
 };
 

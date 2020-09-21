@@ -1,6 +1,6 @@
 # BatchImageProcessor
 
-## Description
+## DESCRIPTION
 A small tool (executable *iptool*) to study Image Processing algorithms.
 
 BatchImageProcessor is mostly written as template library to support rapid
@@ -56,7 +56,7 @@ where the format of a parametersFile.txt is immediately below.
 
 ## PARAMETERS FILE
 
-Briefly the parameters file may be expressed formally (ANTLR syntax) as:
+Briefly the parameters file may be expressed informally (ANTLR syntax) as:
 
     parameterfile      : (commentline|operation)* EOF ;
     commentline        : "#" .* NL ;
