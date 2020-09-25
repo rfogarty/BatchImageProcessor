@@ -49,7 +49,7 @@ Image<PixelT> readPPMFile(const std::string& filename) {
 
    // Read color bytes
    unsigned byteSize = rows*cols*3;
-   typedef std::vector<unsigned char> BufferT;
+   typedef std::vector<uint8_t> BufferT;
    BufferT buffer(byteSize);
    pgm_file.read(reinterpret_cast<char*>(&buffer[0]), byteSize);
    pgm_file.close();
@@ -92,7 +92,7 @@ Image<PixelT> readPGMFile(const std::string& filename) {
 
    // Read grayscale bytes
    unsigned byteSize = rows*cols;
-   typedef std::vector<unsigned char> BufferT;
+   typedef std::vector<uint8_t> BufferT;
    BufferT buffer(byteSize);
    pgm_file.read(reinterpret_cast<char*>(&buffer[0]), byteSize);
    pgm_file.close();
@@ -135,7 +135,7 @@ void writePPMFile(const std::string& filename,const Image<PixelT>& image) {
    typename Image<PixelT>::const_iterator end = image.end();
 
    for(;pos != end;++pos) {
-      // TODO: note Pixel ChannelT in this type has to be unsigned char
+      // TODO: note Pixel ChannelT in this type has to be uint8_t
       // At some point may need to have Pixel conversion functions.
       outfile << pos->namedColor.red;
       outfile << pos->namedColor.green;
@@ -166,7 +166,7 @@ void writePGMFile(const std::string& filename,const Image<PixelT>& image) {
    typename Image<PixelT>::const_iterator end = image.end();
 
    for(;pos != end;++pos) {
-      // TODO: note Pixel ChannelT in this type has to be unsigned char
+      // TODO: note Pixel ChannelT in this type has to be uint8_t
       // At some point may need to have Pixel conversion functions.
       outfile << pos->namedColor.gray;
    }

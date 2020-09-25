@@ -9,17 +9,19 @@
 //             on a set of ROIs, or by default the entire image 
 //             if no ROIs are added to the Operation.
 //
-template<typename ActionT,typename ImageT = typename ActionT::image_type>
+template<typename ActionT,
+         typename ImageSrc = typename ActionT::src_image_type,
+         typename ImageTgt = typename ActionT::tgt_image_type>
 class Operation {
 private:
-   ActionT* mAction;
+   const ActionT* mAction;
    
    typedef std::pair<RegionOfInterest,ParameterPack> ParameterizedRegionT;
 
    typedef std::vector<ParameterizedRegionT> ParameterizedRegionsT;
    ParameterizedRegionsT mRegions;
 
-   void operateOnRegions(const ImageT& src,ImageT& tgt) {
+   void operateOnRegions(const ImageSrc& src,ImageTgt& tgt) {
       // If no regions defined, assume operation is to operate
       // on entire image
       if(0 == mRegions.size()) {
@@ -38,7 +40,7 @@ private:
    }
 
 public:
-   Operation(ActionT* action) : 
+   Operation(const ActionT* action) : 
       mAction(action) {}
 
    ~Operation() {
@@ -51,10 +53,14 @@ public:
    }
 
 
-   ImageT run(const ImageT& src) {
-	   ImageT tgt(src); 
+   ImageTgt run(const ImageSrc& src) {
+	   ImageTgt tgt(src); 
       operateOnRegions(src,tgt);
       return tgt;
+   }
+
+   void run(const ImageSrc& src,ImageTgt& tgt) {
+      operateOnRegions(src,tgt);
    }
 };
 

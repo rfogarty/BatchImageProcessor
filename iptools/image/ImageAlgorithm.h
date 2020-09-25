@@ -22,7 +22,7 @@ inline ValueT checkValue(ValueT value)
 /*-----------------------------------------------------------------------**/
 
 template<typename SrcImageT,typename TgtImageT,typename Value>
-void add(const SrcImageT &src, TgtImageT &tgt, Value value,
+void add(const SrcImageT& src, TgtImageT& tgt, Value value,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -45,7 +45,181 @@ void add(const SrcImageT &src, TgtImageT &tgt, Value value,
 }
 
 template<typename SrcImageT,typename TgtImageT>
-void add(const SrcImageT &src, TgtImageT &tgt, int value,
+void histogram(const SrcImageT& src, TgtImageT& tgt,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   reportIfNotEqual("cols!=max",tgt.cols(),(unsigned)TgtImageT::pixel_type::traits::max()+1u);
+ 
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+
+   // Thinking 4 billion is more than big enough for histogram height
+   typedef std::vector<unsigned int> HistogramT;
+   typedef typename HistogramT::iterator HistogramIterator;
+   
+   // First compute Histogram
+   HistogramT histogram(TgtImageT::pixel_type::traits::max()+1,0u);
+   unsigned int maxColumnHeight = 0;
+   for(;spos != send;++spos) {
+      ++histogram[spos->namedColor.gray];
+      if(histogram[spos->namedColor.gray] > maxColumnHeight) ++maxColumnHeight;
+   }
+
+   // Now we need to normalize the Histogram to the bounds of the rows dimension
+
+   HistogramIterator hpos = histogram.begin();
+   const HistogramIterator hend = histogram.end();
+   float normScale = (float) tgt.rows() / maxColumnHeight;
+   for(;hpos != hend;++hpos) *hpos = static_cast<typename TgtImageT::pixel_type::value_type>(*hpos * normScale);
+
+   // Now we need to compose the histogram, which is a little tricky if done with iteration
+   // Instead, we'll simply use the pixel coordinates to paint. This would be much, much simpler if I first
+   // created an Image transpose function...
+
+   // 1) first whiten the whole image
+   typename TgtImageT::iterator tpos = tgt.begin();
+   typename TgtImageT::iterator tend = tgt.end();
+   for(;tpos != tend;++tpos) tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
+
+   // 2) blacken the histograms working from the bottom
+   unsigned height = tgt.rows();
+   hpos = histogram.begin();
+   //std::cout << "Histogram: ";
+   for(unsigned col = 0;hpos != hend;++hpos,++col) {
+      //std::cout << *hpos << " ";
+      for(unsigned r = *hpos;r > 0;--r) {
+         tgt.pixel(height - r,col).namedColor.gray = TgtImageT::pixel_type::traits::min();
+      }
+   }
+   //std::cout << std::endl;
+}
+
+template<typename SrcImageT,typename TgtImageT>
+void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned channel,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   reportIfNotEqual("cols!=max",tgt.cols(),(unsigned)TgtImageT::pixel_type::traits::max()+1u);
+   reportIfNotLessThan("channel < maxChannels",channel,(unsigned)TgtImageT::pixel_type::MAX_CHANNELS);
+ 
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+
+   // Thinking 4 billion is more than big enough for histogram height
+   typedef std::vector<unsigned int> HistogramT;
+   typedef typename HistogramT::iterator HistogramIterator;
+   
+   // First compute Histogram
+   HistogramT histogram(TgtImageT::pixel_type::traits::max()+1,0u);
+   unsigned int maxColumnHeight = 0;
+   for(;spos != send;++spos) {
+      ++histogram[spos->indexedColor[channel]];
+      if(histogram[spos->indexedColor[channel]] > maxColumnHeight) ++maxColumnHeight;
+   }
+
+   // Now we need to normalize the Histogram to the bounds of the rows dimension
+
+   HistogramIterator hpos = histogram.begin();
+   const HistogramIterator hend = histogram.end();
+   float normScale = (float) tgt.rows() / maxColumnHeight;
+   for(;hpos != hend;++hpos) *hpos = static_cast<typename TgtImageT::pixel_type::value_type>(*hpos * normScale);
+
+   // Now we need to compose the histogram, which is a little tricky if done with iteration
+   // Instead, we'll simply use the pixel coordinates to paint. This would be much, much simpler if I first
+   // created an Image transpose function...
+
+   // 1) first whiten the whole image
+   typename TgtImageT::iterator tpos = tgt.begin();
+   typename TgtImageT::iterator tend = tgt.end();
+   for(;tpos != tend;++tpos) tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
+
+   // 2) blacken the histograms working from the bottom
+   unsigned height = tgt.rows();
+   hpos = histogram.begin();
+   //std::cout << "Histogram: ";
+   for(unsigned col = 0;hpos != hend;++hpos,++col) {
+      //std::cout << *hpos << " ";
+      for(unsigned r = *hpos;r > 0;--r) {
+         tgt.pixel(height - r,col).namedColor.gray = TgtImageT::pixel_type::traits::min();
+      }
+   }
+   //std::cout << std::endl;
+}
+
+template<typename SrcImageT,typename TgtImageT,typename Value>
+void histogramModify(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   reportIfNotLessThan("cols!=max",low,high);
+
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
+
+   // Algorithm
+   float rescale = (float) TgtImageT::pixel_type::traits::max()/(high - low);
+
+   for(;spos != send;++spos,++tpos) {
+      if(spos->namedColor.gray <= low) tpos->namedColor.gray = TgtImageT::pixel_type::traits::min();
+      else if(spos->namedColor.gray <= high)
+         tpos->namedColor.gray = static_cast<typename TgtImageT::pixel_type::value_type>(rescale * (spos->namedColor.gray - low));
+      else tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
+   }
+}
+
+template<typename SrcPixelT,typename TgtPixelT,typename Bounds,typename Constraints>
+inline void linearlyStretch(const SrcPixelT& src,TgtPixelT& tgt,float rescale,Bounds min, Bounds max,Constraints low,Constraints high) {
+   if(src <= low) tgt = min;
+   else if(src <= high) tgt = static_cast<Bounds>(rescale * (src - low));
+   else tgt = max;
+}
+
+template<typename SrcImageT,typename TgtImageT,typename Value>
+void histogramModifyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   reportIfNotLessThan("cols!=max",low,high);
+
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
+
+   // Algorithm
+   float rescale = (float) TgtImageT::pixel_type::traits::max()/(high - low);
+
+   typename TgtImageT::pixel_type::value_type min = TgtImageT::pixel_type::traits::min();
+   typename TgtImageT::pixel_type::value_type max = TgtImageT::pixel_type::traits::max();
+
+   for(;spos != send;++spos,++tpos) {
+      linearlyStretch(spos->namedColor.red,tpos->namedColor.red,rescale,min,max,low,high);
+      linearlyStretch(spos->namedColor.green,tpos->namedColor.green,rescale,min,max,low,high);
+      linearlyStretch(spos->namedColor.blue,tpos->namedColor.blue,rescale,min,max,low,high);
+   }
+}
+
+
+
+template<typename SrcImageT,typename TgtImageT>
+void add(const SrcImageT& src, TgtImageT& tgt, int value,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -77,7 +251,7 @@ void add(const SrcImageT &src, TgtImageT &tgt, int value,
 
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
-void binarize(const SrcImageT &src, TgtImageT &tgt, unsigned threshold,
+void binarize(const SrcImageT& src, TgtImageT& tgt, unsigned threshold,
               // This ugly bit is an unnamed argument with a default which means it neither           
               // contributes to the mangled declaration name nor requires an argument. So what is the 
               // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -98,7 +272,7 @@ void binarize(const SrcImageT &src, TgtImageT &tgt, unsigned threshold,
 
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
-void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance,
+void binarizeColor(const SrcImageT& src, TgtImageT& tgt, float thresholdDistance,
                    const typename SrcImageT::pixel_type& referenceColor,
                    // This ugly bit is an unnamed argument with a default which means it neither           
                    // contributes to the mangled declaration name nor requires an argument. So what is the 
@@ -111,6 +285,9 @@ void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
 
+   // To avoid expensive sqrt on all distance calculations,
+   // we may instead compare to the squared thresholdDistance.
+   double thresholdDistance2 = thresholdDistance * thresholdDistance;
 #ifdef DEBUG_BINARIZE_COLOR
    unsigned count = 0;
 #endif
@@ -121,7 +298,8 @@ void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance
                      (double)referenceColor.namedColor.green;
       double diffb = (double)spos->namedColor.blue -
                      (double)referenceColor.namedColor.blue;
-      double distance = std::sqrt(diffr*diffr + diffg*diffg + diffb*diffb);
+      //double distance = std::sqrt(diffr*diffr + diffg*diffg + diffb*diffb);
+      double distance = diffr*diffr + diffg*diffg + diffb*diffb;
 
 #ifdef DEBUG_BINARIZE_COLOR
       if(++count % 10000 == 0) 
@@ -129,11 +307,11 @@ void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance
                    << "diffg=" << diffg << " "
                    << "diffb=" << diffb << " "
                    << "distance=" << distance << " "
-                   << "thresholdDistance=" << thresholdDistance << " "
+                   << "thresholdDistance2=" << thresholdDistance2 << " "
                    << "distance<thresholdDistance=" << (distance < thresholdDistance) << std::endl;
 #endif
 
-      if(distance < thresholdDistance) {
+      if(distance < thresholdDistance2) {
          // Anything below the threshold is white
          tpos->namedColor.red = TgtImageT::pixel_type::traits::max();
          tpos->namedColor.green = TgtImageT::pixel_type::traits::max();
@@ -152,7 +330,7 @@ void binarizeColor(const SrcImageT &src, TgtImageT &tgt, float thresholdDistance
 
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
-void binarizeDouble(const SrcImageT &src, TgtImageT &tgt, unsigned thresholdLow,unsigned thresholdHigh,
+void binarizeDouble(const SrcImageT& src, TgtImageT& tgt, unsigned thresholdLow,unsigned thresholdHigh,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -173,6 +351,167 @@ void binarizeDouble(const SrcImageT &src, TgtImageT &tgt, unsigned thresholdLow,
    }
 }
 
+
+template<typename PixelT,typename AccumulatorVariableTT>
+struct PixelSquareSubtractor {
+   AccumulatorVariableTT& mSquareAccumulator;
+   PixelSquareSubtractor(AccumulatorVariableTT& squareAccumulator) : mSquareAccumulator(squareAccumulator) {}
+   void operator()(const PixelT& pixel) { 
+      mSquareAccumulator -= pixel.namedColor.gray * pixel.namedColor.gray; }
+};
+
+
+template<typename PixelT,typename AccumulatorVariableTT>
+struct PixelSquareAdder {
+   AccumulatorVariableTT& mSquareAccumulator;
+   PixelSquareAdder(AccumulatorVariableTT& squareAccumulator) :  mSquareAccumulator(squareAccumulator) {}
+   void operator()(const PixelT& pixel) { 
+      mSquareAccumulator += pixel.namedColor.gray * pixel.namedColor.gray;
+   }
+};
+
+
+// Computing Variance using the "Sum of Squares" method. Note:
+// that under some circumstances that this approach is numerically unstable.
+// For more details on this see:
+// https://www.johndcook.com/blog/2008/09/26/comparing-three-methods-of-computing-standard-deviation/
+//
+// It was not apparent how to apply the Welford method to a moving windowed average/variance.
+// But for low-precision (uint8_t) grayscale, we'd need to have rather large
+// window size (larger than 16x16) to exceed the precision of the accumulators.
+//
+// Furthermore, for the derivation of the Variance + Mean^2 term, if the window
+// shrinks to 1 (namely in the corners or edges of the Window, an unbiased variance calculation
+// leads to divide by zero terms in both the sum of squares and the square of average term. If
+// the biased mean, on the other hand is used, we have numerous benefits:
+//   1) The square of the average term completely falls away (so does not need to be calculate)
+//   2) The sum of the square terms is simply divided by the window size without needing
+//      a difference term with large precision.
+//   3) Window size may be increased rather dramatically from 15x15 to 257x257 (for uint8_t
+//   grayscale, and unsigned int accumulator).
+// I.e. using the biased estimate for variance provides a stable, numerical and faster solution.
+// We also expect that the bias is in the same direction for all samples, and we really
+// only care about the relative order of M^2 + S^2 terms for histogram equalization (by sorting),
+// so bias is of no concern.
+template<typename ImageViewT,
+         typename PixelT = typename ImageViewT::pixel_type,
+         typename AccumulatorVariableT = typename AccumulatorVariableSelect<PixelT>::type >
+class SumOfSquares {
+private:
+   typedef ElasticImageView<const PixelT>                     ConstElasticViewT;
+   typedef PixelSquareSubtractor<PixelT,AccumulatorVariableT> SubtractorT;
+   typedef PixelSquareAdder<PixelT,AccumulatorVariableT>      AdderT;
+
+   typename ImageViewT::const_image_view mBoundingView;
+   ConstElasticViewT                     mElasticView;
+   AccumulatorVariableT                  mSquareAccumulator;
+   SubtractorT                           mSubtractor;
+   AdderT                                mAdder;
+
+public:
+   typedef typename PixelT::value_type value_type;
+
+   SumOfSquares(const ImageViewT& imageView,unsigned windowSize) :
+      mBoundingView(imageView),
+      mElasticView(mBoundingView.elastic_view(windowSize,windowSize)),
+      // Initialize mAccumulator with element 0,0
+      mSquareAccumulator(mElasticView.pixel(0,0).namedColor.gray*mElasticView.pixel(0,0).namedColor.gray),
+      mSubtractor(mSquareAccumulator),
+      mAdder(mSquareAccumulator)
+   {}
+
+   value_type squareAverage() {
+      return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mSquareAccumulator / mElasticView.size())));
+   }
+
+   void operator++() {
+      mElasticView.moveRight(mSubtractor,mAdder);
+   }
+};
+
+
+template<typename ParametricImageT>
+void initParametricImage(ParametricImageT& parImage) {
+   
+   typedef typename ParametricImageT::pixel_type PixelT;
+
+   for(unsigned r = 0; r < parImage.rows();++r) {
+      for(unsigned c = 0; c < parImage.cols();++c) {
+         PixelT& rpix = parImage.pixel(r,c);
+         rpix.row = r;
+         rpix.col = c;
+      }
+   }
+}
+
+template<typename SrcImageT,typename TgtImageT>
+void histogramUnify(const SrcImageT& src, TgtImageT& tgt,unsigned windowSize,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   typedef typename SrcImageT::pixel_type PixelT;
+   typedef typename AccumulatorVariableSelect<PixelT>::type AccumulatorVariableT;
+   typedef ParametricGrayAlphaPixel<AccumulatorVariableT> IntermediatePixelT;
+   typedef Image<IntermediatePixelT> IntermediateImageT;
+
+   reportIfNotLessThan("windowSize",2u,windowSize);
+   reportIfNotEqual("windowSize (which should be odd)",windowSize-1,((windowSize >> 1u) << 1u));
+   reportIfNotEqual("src.rows() != tgt.rows()",src.rows(),tgt.rows());
+   reportIfNotEqual("src.cols() != tgt.cols()",src.cols(),tgt.cols());
+
+   unsigned rows = src.rows();
+   unsigned cols = src.cols();
+
+   // We can write out result to iterator operating over entire passed Image or ImageView
+   // since the iteration order is exactly the same as our loops.
+   IntermediateImageT interImage(src.rows(),src.cols());
+   // Start by initializing parametric values;
+   initParametricImage(interImage);
+
+   // TODO: To Complete!!!
+//   typename TgtImageT::iterator tpos = tgt.begin();
+//
+//   // Start by smoothing along X for each row
+//   for(unsigned i = 0;i < rows;++i) {
+//      typedef SumOfSquares<SrcImageT> SquareSmoothT;
+//      typedef typename SrcImageT::image_view RowViewT;
+//      
+//      RowViewT rowView(src.view(rows-i,cols,i));
+//      SquareSmoothT squareSmooth(rowView,windowSize);
+//      // We always start with the first answer precomputed
+//      // which also implies we will only iterate and shift cols-1 times.
+//      tpos->namedColor.gray = smoothX.average();
+//      ++tpos;
+//      for(unsigned j = 1;j < cols;++j,++tpos) {
+//         ++smoothX;
+//         tpos->namedColor.gray = smoothX.average();
+//      }
+//   }
+//
+//   typedef typename TgtImageT::image_view ColumnViewT; // not strictly a Column type, but will be
+//                                                       // parameterized below to operate as one.
+//   typedef typename ColumnViewT::iterator ColumnIteratorT;
+//   // In this case our iteration order is flipped, and since we don't have a column-first
+//   // iterator type, we just need to create column views to write out our output.
+//   for(unsigned j = 0; j < cols; ++j) {
+//      typedef SmoothY<TgtImageT> SmoothYT;
+//      ColumnViewT columnView(tgt.view(rows,1,0,j));
+//      SmoothYT smoothY(columnView,windowSize);
+//      ColumnIteratorT cpos = columnView.begin();
+//      // As above, we always start with the first answer precomputed
+//      // which also implies we will only iterate and shift rows-1 times.
+//      cpos->namedColor.gray = smoothY.average();
+//      ++cpos;
+//      for(unsigned i = 1;i < rows;++i,++cpos) {
+//         ++smoothY;
+//         cpos->namedColor.gray = smoothY.average();
+//      }
+//   }
+}
 
 
 
@@ -267,7 +606,7 @@ public:
 
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
-void uniformSmooth(const SrcImageT &src, TgtImageT &tgt,unsigned windowSize,
+void uniformSmooth(const SrcImageT& src, TgtImageT& tgt,unsigned windowSize,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -327,7 +666,7 @@ void uniformSmooth(const SrcImageT &src, TgtImageT &tgt,unsigned windowSize,
 
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
-void scale(const SrcImageT &src, TgtImageT &tgt, float ratio,
+void scale(const SrcImageT& src, TgtImageT& tgt, float ratio,
               // This ugly bit is an unnamed argument with a default which means it neither           
               // contributes to the mangled declaration name nor requires an argument. So what is the 
               // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -397,11 +736,11 @@ public:
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    // Note: RegionOfInterest is ignored.
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
       scale(src,tgt,mAmount);
    }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
       fail("scale function does not support regions");
    }
 
@@ -420,7 +759,7 @@ public:
 private:
    int mAmount;
 
-   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,int amount) {
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,int amount) const {
       typename ImageT::image_view tgtview = roi2view(tgt,roi);
       add(roi2view(src,roi),tgtview,amount);
    }
@@ -436,11 +775,11 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
       run(src,tgt,roi,mAmount);
    }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
       reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
       int amount = parseWord<int>(parameters[0]);
       run(src,tgt,roi,amount);
@@ -452,6 +791,133 @@ public:
    }
 };
 
+
+#define HISTACTION(NAME,CALL)                                                                                            \
+template<typename ImageT>                                                                                                \
+class NAME : public Action<ImageT> {                                                                                     \
+public:                                                                                                                  \
+   typedef NAME<ImageT> ThisT;                                                                                           \
+private:                                                                                                                 \
+   unsigned mLow;                                                                                                        \
+   unsigned mHigh;                                                                                                       \
+                                                                                                                         \
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned low, unsigned high) const {               \
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);                                                           \
+      CALL(roi2view(src,roi),tgtview,low,high);                                                                          \
+   }                                                                                                                     \
+                                                                                                                         \
+   enum { NUM_PARAMETERS = 2 };                                                                                          \
+                                                                                                                         \
+public:                                                                                                                  \
+   NAME(unsigned low,unsigned high) : mLow(low), mHigh(high) {}                                                          \
+                                                                                                                         \
+   virtual ~NAME() {}                                                                                                    \
+                                                                                                                         \
+   virtual ActionType type() const { return HISTOGRAM_MOD; }                                                             \
+                                                                                                                         \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                     \
+                                                                                                                         \
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {                                   \
+      run(src,tgt,roi,mLow,mHigh);                                                                                       \
+   }                                                                                                                     \
+                                                                                                                         \
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {   \
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                        \
+      unsigned low = parseWord<unsigned>(parameters[0]);                                                                 \
+      unsigned high = parseWord<unsigned>(parameters[1]);                                                                \
+      run(src,tgt,roi,low,high);                                                                                         \
+   }                                                                                                                     \
+                                                                                                                         \
+   static NAME* make(std::istream& ins) {                                                                                \
+      unsigned low = parseWord<unsigned>(ins);                                                                           \
+      unsigned high = parseWord<unsigned>(ins);                                                                          \
+      return new NAME<ImageT>(low,high);                                                                                 \
+   }                                                                                                                     \
+};                                                                                                                       \
+/* End of Macro HISTACTION */
+
+HISTACTION(HistogramModify,histogramModify)
+HISTACTION(HistogramModifyRGB,histogramModifyRGB)
+
+
+template<typename ImageT>
+class Histogram : public Action<ImageT> {
+public:
+   typedef Histogram<ImageT> ThisT;
+
+private:
+
+   void runHist(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
+      histogram(roi2view(src,roi),tgt);
+   }
+
+   enum { NUM_PARAMETERS = 0 };
+
+public:
+   Histogram() {}
+
+   virtual ~Histogram() {}
+
+   virtual ActionType type() const { return HISTOGRAM; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
+      runHist(src,tgt,roi);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      runHist(src,tgt,roi);
+   }
+
+   static Histogram* make(std::istream& ins) {
+      return new Histogram<ImageT>();
+   }
+};
+
+
+template<typename ImageSrc,typename ImageTgt = Image<GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
+class HistogramChannel : public Action<ImageSrc,ImageTgt> {
+public:
+   typedef HistogramChannel<ImageSrc,ImageTgt> ThisT;
+
+private:
+
+   unsigned mChannel;
+
+   void runHist(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi,unsigned channel) const {
+      histogram(roi2view(src,roi),tgt,channel);
+   }
+
+   enum { NUM_PARAMETERS = 0 };
+
+public:
+   HistogramChannel(unsigned channel) : mChannel(channel) {}
+
+   virtual ~HistogramChannel() {}
+
+   virtual ActionType type() const { return HISTOGRAM; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi) const {
+      runHist(src,tgt,roi,mChannel);
+   }
+
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      unsigned channel = parseWord<unsigned>(parameters[0]);
+      runHist(src,tgt,roi,channel);
+   }
+
+   static HistogramChannel* make(std::istream& ins) {
+      unsigned channel = parseWord<unsigned>(ins);
+      return new HistogramChannel<ImageSrc,ImageTgt>(channel);
+   }
+};
+
+
 template<typename ImageT>
 class Binarize : public Action<ImageT> {
 public:
@@ -460,7 +926,7 @@ public:
 private:
    unsigned mThreshold;
 
-   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned threshold) {
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned threshold) const {
       typename ImageT::image_view tgtview = roi2view(tgt,roi);
       binarize(roi2view(src,roi),tgtview,threshold);
    }
@@ -476,11 +942,11 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
       run(src,tgt,roi,mThreshold);
    }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
       reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
       unsigned threshold = parseWord<unsigned>(parameters[0]);
       run(src,tgt,roi,threshold);
@@ -492,6 +958,8 @@ public:
    }
 };
 
+
+
 template<typename ImageT>
 class BinarizeDT : public Action<ImageT> {
 public:
@@ -502,7 +970,7 @@ private:
    unsigned mThresholdLow;
    unsigned mThresholdHigh;
 
-   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned thresholdLow,unsigned thresholdHigh) {
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned thresholdLow,unsigned thresholdHigh) const {
       typename ImageT::image_view tgtview = roi2view(tgt,roi);
       binarizeDouble(roi2view(src,roi),tgtview,thresholdLow,thresholdHigh);
    }
@@ -521,11 +989,11 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
       run(src,tgt,roi,mThresholdLow,mThresholdHigh);
    }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
       reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
       unsigned thresholdLow = parseWord<unsigned>(parameters[0]);
       unsigned thresholdHigh = parseWord<unsigned>(parameters[1]);
@@ -540,6 +1008,7 @@ public:
 };
 
 
+
 template<typename ImageT>
 class BinarizeColor : public Action<ImageT> {
 public:
@@ -551,7 +1020,7 @@ private:
    float mThreshold;
    pixel_type mReferenceColor;
 
-   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,float threshold,const pixel_type& referenceColor) {
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,float threshold,const pixel_type& referenceColor) const {
       typename ImageT::image_view tgtview = roi2view(tgt,roi);
       binarizeColor(roi2view(src,roi),tgtview,threshold,referenceColor);
    }
@@ -567,11 +1036,11 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
       run(src,tgt,roi,mThreshold,mReferenceColor);
    }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
       reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
       float threshold = parseWord<float>(parameters[0]);
       pixel_type referenceColor;
@@ -591,6 +1060,8 @@ public:
    }
 };
 
+
+
 template<typename ImageT>
 class UniformSmooth : public Action<ImageT> {
 public:
@@ -599,7 +1070,7 @@ public:
 private:
    unsigned mWindowSize;
 
-   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned windowSize) {
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,unsigned windowSize) const {
       typename ImageT::image_view tgtview = roi2view(tgt,roi);
       uniformSmooth(roi2view(src,roi),tgtview,windowSize);
    }
@@ -615,11 +1086,11 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
       run(src,tgt,roi,mWindowSize);
    }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) {
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
       reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
       unsigned windowSize = parseWord<unsigned>(parameters[0]);
       run(src,tgt,roi,windowSize);

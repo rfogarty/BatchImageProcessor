@@ -2,6 +2,7 @@
 
 #include "cppTools/TemplateMetaprogramming.h"
 #include "cppTools/Platform.h"
+#include "PixelConversion.h"
 #include <limits>
 #include <ostream>
 
@@ -62,8 +63,11 @@ struct ChannelTraits<double> {
    value_type max() { return 1.0; }
 };
 
+
+
+
 template<typename ChannelT,typename ChannelTraitsT = ChannelTraits<ChannelT> >
-struct ColorPixel {
+struct RGBAPixel {
    
    typedef ChannelT value_type;
    typedef ChannelTraitsT traits;
@@ -94,18 +98,21 @@ struct ColorPixel {
       MAX_CHANNELS = 4
    };
 
-   ColorPixel() :
+   RGBAPixel() :
       namedColor()
    {}
 
-   bool operator==(const ColorPixel& that) {
+   bool operator==(const RGBAPixel& that) {
+      // TODO: this type of comparison isn't appropriate
+      // for floating point types...
+      // Probably need to add a comparison traits for ChannelT
       return namedColor.red == that.namedColor.red &&
              namedColor.green == that.namedColor.green &&
              namedColor.blue == that.namedColor.blue &&
              namedColor.alpha == that.namedColor.alpha;
    }
 
-   bool operator!=(const ColorPixel& that) {
+   bool operator!=(const RGBAPixel& that) {
       return !(*this == that);
    }
 };
@@ -119,17 +126,114 @@ template <class T> struct is_rgba<const T& >                 : public is_rgba<T>
 template <class T> struct is_rgba<volatile const T& >        : public is_rgba<T>{};
 template <class T> struct is_rgba<volatile T& >              : public is_rgba<T>{};
 // TODO: does this need to consider the traits class? O.w. my have inadvertant false types, if overloaded traits?
-template <class T> struct is_rgba<ColorPixel<T> >            : public std::true_type{};
-
+template <class T> struct is_rgba<RGBAPixel<T> >            : public std::true_type{};
 
 
 template<typename ChannelT,typename ChannelTraitsT>
-std::ostream& operator<<(std::ostream& os,const ColorPixel<ChannelT,ChannelTraitsT>& pixel) {
+std::ostream& operator<<(std::ostream& os,const RGBAPixel<ChannelT,ChannelTraitsT>& pixel) {
 
    os << "Color(" 
       << pixel.namedColor.red << ","
       << pixel.namedColor.green << ","
       << pixel.namedColor.blue << ","
+      << pixel.namedColor.alpha << ")";
+
+   return os;
+}
+
+
+template<typename ChannelT,typename ChannelTraitsT = ChannelTraits<ChannelT> >
+struct HSIPixel {
+   
+   typedef ChannelT value_type;
+   typedef ChannelTraitsT traits;
+
+   typedef ChannelT Channels[4];
+   
+   struct HSI {
+      ChannelT hue;
+      ChannelT saturation;
+      ChannelT intensity;
+      ChannelT alpha;
+#if __cplusplus >= 201103L
+      HSI() :
+         hue(0),
+         saturation(0),
+         intensity(0),
+         alpha(0)
+      {}
+#endif
+   };
+   
+   union {
+      Channels indexedColor;
+      HSI      namedColor;
+   };
+
+   enum {
+      MAX_CHANNELS = 4
+   };
+
+   HSIPixel() :
+      namedColor()
+   {}
+
+   // implicit conversion from RGBAPixel
+   template<typename ChannelTT,typename ChannelTTTraits>
+   HSIPixel(const RGBAPixel<ChannelTT,ChannelTTTraits>& rgba);
+
+   // also provide implicit conversion to RGBAPixel via conversion cast
+   template<typename ChannelTT,typename ChannelTTTraits>
+   operator RGBAPixel<ChannelTT,ChannelTTTraits>() const;
+
+   bool operator==(const HSIPixel& that) {
+      return namedColor.hue == that.namedColor.hue &&
+             namedColor.saturation == that.namedColor.saturation &&
+             namedColor.intensity == that.namedColor.intensity &&
+             namedColor.alpha == that.namedColor.alpha;
+   }
+
+   bool operator!=(const HSIPixel& that) {
+      return !(*this == that);
+   }
+};
+
+template<typename ChannelT,typename ChannelTraitsT>
+template<typename ChannelTT,typename ChannelTTTraits>
+HSIPixel<ChannelT,ChannelTraitsT>::HSIPixel(const RGBAPixel<ChannelTT,ChannelTTTraits>& rgba) :
+   namedColor() {
+   rgba2hsi(rgba,*this);
+}
+
+template<typename ChannelT,typename ChannelTraitsT>
+template<typename ChannelTT,typename ChannelTTTraits>
+HSIPixel<ChannelT,ChannelTraitsT>::operator RGBAPixel<ChannelTT,ChannelTTTraits>() const {
+   RGBAPixel<ChannelTT,ChannelTTTraits> rgba;
+   hsi2rgba(*this,rgba);
+   return rgba;
+}
+
+
+template <class T> struct is_hsi                            : public std::false_type{};
+template <class T> struct is_hsi<const T >                  : public is_hsi<T>{};
+template <class T> struct is_hsi<volatile const T >         : public is_hsi<T>{};
+template <class T> struct is_hsi<volatile T >               : public is_hsi<T>{};
+template <class T> struct is_hsi<T& >                       : public is_hsi<T>{};
+template <class T> struct is_hsi<const T& >                 : public is_hsi<T>{};
+template <class T> struct is_hsi<volatile const T& >        : public is_hsi<T>{};
+template <class T> struct is_hsi<volatile T& >              : public is_hsi<T>{};
+// TODO: does this need to consider the traits class? O.w. my have inadvertant false types, if overloaded traits?
+template <class T> struct is_hsi<HSIPixel<T> >              : public std::true_type{};
+
+
+
+template<typename ChannelT,typename ChannelTraitsT>
+std::ostream& operator<<(std::ostream& os,const HSIPixel<ChannelT,ChannelTraitsT>& pixel) {
+
+   os << "HSI_Color(" 
+      << pixel.namedColor.hue << ","
+      << pixel.namedColor.saturation << ","
+      << pixel.namedColor.intensity << ","
       << pixel.namedColor.alpha << ")";
 
    return os;
@@ -168,6 +272,15 @@ struct GrayAlphaPixel {
       namedColor()
    {}
 
+   // implicit conversion from RGBAPixel
+   template<typename ChannelTT,typename ChannelTTTraits>
+   GrayAlphaPixel(const RGBAPixel<ChannelTT,ChannelTTTraits>& rgba);
+
+   // also provide implicit conversion to RGBAPixel via conversion cast
+   template<typename ChannelTT,typename ChannelTTTraits>
+   operator RGBAPixel<ChannelTT,ChannelTTTraits>() const;
+
+
    bool operator==(const GrayAlphaPixel& that) {
       return namedColor.gray == that.namedColor.gray &&
              namedColor.alpha == that.namedColor.alpha;
@@ -177,6 +290,24 @@ struct GrayAlphaPixel {
       return !(*this == that);
    }
 };
+
+
+template<typename ChannelT,typename ChannelTraitsT>
+template<typename ChannelTT,typename ChannelTTTraits>
+GrayAlphaPixel<ChannelT,ChannelTraitsT>::GrayAlphaPixel(const RGBAPixel<ChannelTT,ChannelTTTraits>& rgba) :
+   namedColor() {
+   rgba2gray(rgba,*this);
+}
+
+template<typename ChannelT,typename ChannelTraitsT>
+template<typename ChannelTT,typename ChannelTTTraits>
+GrayAlphaPixel<ChannelT,ChannelTraitsT>::operator RGBAPixel<ChannelTT,ChannelTTTraits>() const {
+   RGBAPixel<ChannelTT,ChannelTTTraits> rgba;
+   gray2rgba(*this,rgba);
+   return rgba;
+}
+
+
 
 // Template types for SFINAE deduction - used to identify proper function overloads
 template <class T> struct is_grayscale                       : public std::false_type{};
@@ -265,24 +396,63 @@ std::ostream& operator<<(std::ostream& os,const MonochromePixel<ChannelT,Channel
 }
 
 
+template<typename ChannelT,typename ChannelTraitsT = ChannelTraits<ChannelT> >
+struct ParametricGrayAlphaPixel {
+   
+   typedef ChannelT value_type;
+   typedef ChannelTraitsT traits;
+
+   typedef ChannelT Channels[2];
+   
+   struct GA {
+      ChannelT gray;
+      ChannelT alpha;
+#if __cplusplus >= 201103L
+      GA() :
+         gray(0),
+         alpha(0)
+      {}
+#endif
+   };
+   
+   union {
+      Channels indexedColor;
+      GA namedColor;
+   };
+
+   unsigned row;
+   unsigned col;
+
+   enum {
+      MAX_CHANNELS = 2
+   };
+
+   ParametricGrayAlphaPixel() :
+      namedColor()
+   {}
+
+   bool operator==(const ParametricGrayAlphaPixel& that) {
+      return namedColor.gray == that.namedColor.gray &&
+             namedColor.alpha == that.namedColor.alpha;
+   }
+
+   bool operator!=(const ParametricGrayAlphaPixel& that) {
+      return !(*this == that);
+   }
+};
+
+
+
 
 template<typename PixelT,typename ChannelT = typename PixelT::value_type>
 struct AccumulatorVariableSelect { typedef ChannelT type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,unsigned char> { typedef unsigned type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint16_t> { typedef unsigned type; };
-
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint8_t>  { typedef uint32_t type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint16_t> { typedef uint32_t type; };
 template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint32_t> { typedef uint64_t type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,signed char> { typedef int type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int16_t> { typedef int type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int32_t> { typedef int64_t type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,float> { typedef double type; };
-
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,double> { typedef double type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int8_t>   { typedef int32_t  type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int16_t>  { typedef int32_t  type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int32_t>  { typedef int64_t  type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,float>    { typedef double   type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,double>   { typedef double   type; };
 
 

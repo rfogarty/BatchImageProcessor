@@ -29,7 +29,7 @@ public:
 
 void createGrayscaleImage() {
    
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
 
    ImageT image(1000u,1200u);
@@ -38,7 +38,7 @@ void createGrayscaleImage() {
 }
 
 void copyConstructGrayscaleImages() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
 
    ImageT image1(1000u,1200u);
@@ -53,7 +53,7 @@ void copyConstructGrayscaleImages() {
 }
 
 void assignGrayscaleImages() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
 
    ImageT image1(1000u,1200u);
@@ -70,7 +70,7 @@ void assignGrayscaleImages() {
 }
 
 void makeProperGrayscaleView() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
    typedef typename ImageT::image_view ViewT;
 
@@ -81,7 +81,7 @@ void makeProperGrayscaleView() {
 }
 
 void makeImproperGrayscaleView() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
    typedef typename ImageT::image_view ViewT;
 
@@ -97,7 +97,7 @@ void makeImproperGrayscaleView() {
 
 
 void moveGrayscaleView() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
    typedef typename ImageT::image_view ViewT;
 
@@ -114,7 +114,7 @@ void moveGrayscaleView() {
 }
 
 void makeProperGrayscaleSubview() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
    typedef typename ImageT::image_view ViewT;
 
@@ -136,7 +136,7 @@ void makeProperGrayscaleSubview() {
 }
 
 void makeImproperGrayscaleSubview() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
    typedef typename ImageT::image_view ViewT;
 
@@ -156,7 +156,7 @@ void makeImproperGrayscaleSubview() {
 }
 
 void moveGrayscaleSubview() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
    typedef typename ImageT::image_view ViewT;
 
@@ -180,7 +180,7 @@ void moveGrayscaleSubview() {
 }
 
 void testViewIteratorGrayscale() {
-   typedef GrayAlphaPixel<unsigned char> PixelT;
+   typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
    typedef typename ImageT::image_view ViewT;
    typedef typename ViewT::iterator IteratorT;
@@ -194,7 +194,7 @@ void testViewIteratorGrayscale() {
    unsigned iterations = 0;
    unsigned size = view.size();
    for(;pos != end;++pos,++iterations) {
-      pos->namedColor.gray = (unsigned char)((double)iterations*255.0/size);
+      pos->namedColor.gray = (uint8_t)((double)iterations*255.0/size);
    }
    reportIfNotEqual("view.size() == iterations",iterations,view.size());
 
@@ -223,7 +223,7 @@ void testElasticViewGrayscale() {
    unsigned iterations = 0;
    unsigned size = view.size();
    for(;pos != end;++pos,++iterations) {
-      pos->namedColor.gray = (unsigned char)((double)iterations*255.0/size);
+      pos->namedColor.gray = (uint8_t)((double)iterations*255.0/size);
    }
    reportIfNotEqual("view.size() == iterations",iterations,view.size());
 
@@ -233,7 +233,7 @@ void testElasticViewGrayscale() {
 
 void createColorImage() {
 
-   typedef ColorPixel<unsigned char> PixelT;
+   typedef RGBAPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
 
    ImageT image(1000u,1200u);
@@ -242,7 +242,7 @@ void createColorImage() {
 }
 
 void copyConstructColorImages() {
-   typedef ColorPixel<unsigned char> PixelT;
+   typedef RGBAPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
 
    ImageT image1(1000u,1200u);
@@ -259,7 +259,7 @@ void copyConstructColorImages() {
 }
 
 void assignColorImages() {
-   typedef ColorPixel<unsigned char> PixelT;
+   typedef RGBAPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
 
    ImageT image1(1000u,1200u);
@@ -278,7 +278,7 @@ void assignColorImages() {
 }
 
 void moveColorView() {
-   typedef ColorPixel<unsigned char> PixelT;
+   typedef RGBAPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
    typedef typename ImageT::image_view ViewT;
 

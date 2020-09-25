@@ -14,6 +14,8 @@ enum ActionType {
    BINARIZE,
    BINARIZE_DT,
    SCALE,
+   HISTOGRAM,
+   HISTOGRAM_MOD,
    UNIFORM_SMOOTH
 };
 
@@ -26,10 +28,11 @@ typedef std::vector<std::string> ParameterPack;
 // This class is an abstract base class (ABC) so is composed only of
 // pure virtual functions and a virtual destructor. 
 //
-template<typename ImageT>
+template<typename ImageSrc,typename ImageTgt=ImageSrc>
 class Action {
 public:
-   typedef ImageT image_type;
+   typedef ImageSrc src_image_type;
+   typedef ImageTgt tgt_image_type;
 
    virtual ~Action() {}
 
@@ -37,9 +40,9 @@ public:
 
    virtual unsigned numParameters() const = 0;
 
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) = 0;
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi) const = 0;
    
-   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) = 0;
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const = 0;
 };
 
 

@@ -1,22 +1,31 @@
-# Grayscale processing
-SGF_bw.pgm processed/SGF_bindt_var.pgm binarizeDT 50 200 ROI: 20 30 100 100 50 200 ROI: 200 200 200 200 20 100 ROI: 500 500 200 300 100 180
-SGF_bw.pgm processed/SGF_smooth_all.pgm uniformSmooth 13
-SGF_bw.pgm processed/SGF_smooth_roi.pgm uniformSmooth 13 ROI: 20 30 100 100 7 ROI: 200 200 200 200 51 ROI: 500 500 200 300 81
-SGF_bw.pgm processed/SGF_bi80_200.pgm binarizeDT 80 200
-SGF_bw.pgm processed/SGF_bw_addvar.pgm add 50 ROI: 100 100 100 100 20 ROI: 200 250 100 100 40 ROI: 300 400 100 100 70 ROI: 400 550 100 100 95 ROI: 500 700 100 100 120 ROI: 600 850 100 100 160
-SGF_bw.pgm processed/SGF_s200.pgm scale 2
-SGF_bw.pgm processed/SGF_s50.pgm scale 0.5
-CaptainUnderpants_bw.pgm processed/CaptainUnderpants_bin.pgm binarizeDT 25 150
-MadeiraBeachSunset_bw.pgm processed/MadeiraBeachSunset_smooth.pgm uniformSmooth 13 ROI: 1060 0 500 2080 15
-MadeiraBeachSunset_bw.pgm processed/MadeiraBeachSunset_binrois.pgm binarizeDT 60 175 ROI: 1060 0 500 2080 60 175 ROI: 0 0 1060 2080 120 150
+# Grayscale processing for HW2
+SGF_bw.pgm processed/SGF_hist1.pgm hist
+SGF_bw.pgm processed/SGF_histmod.pgm histMod 10 150
+processed/SGF_histmod.pgm processed/SGF_hist2.pgm hist
 
-# Color processing
-SGF_color.ppm processed/SGF_addvar.ppm add 50 ROI: 100 100 100 100 20 ROI: 200 250 100 100 40 ROI: 300 400 100 100 70 ROI: 400 550 100 100 95 ROI: 500 700 100 100 120 ROI: 600 850 100 100 160
-SGF_color.ppm processed/SGF_binarizeColor.ppm binarizeColor 50.0 100 100 100
-SGF_color.ppm processed/SGF_binarizeColor_roi.ppm binarizeColor 50.0 100 100 100 ROI: 50 100 300 300 100.0 60 60 60 ROI: 200 250 350 350 20.0 150 150 150 ROI: 350 450 360 400 150.0 200 80 80
-CaptainUnderpants_color.ppm processed/CaptainUnderpants_bin.ppm binarizeColor 100.0 120 120 20
-MadeiraBeachSunset_color.ppm processed/MadeiraBeachSunset_brighten.ppm add 30 ROI: 0 0 780 1040 20 ROI: 0 1040 780 1040 40 ROI: 780 1040 780 1040 80 ROI: 780 0 780 1040 60
-MadeiraBeachSunset_color.ppm processed/MadeiraBeachSunset_colorbin.ppm binarizeColor 100 180 180 225 ROI: 0 0 1060 2080 100 180 180 225
+
+
+
+
+# Grayscale processing for HW1
+#SGF_bw.pgm processed/SGF_bindt_var.pgm binarizeDT 50 200 ROI: 20 30 100 100 50 200 ROI: 200 200 200 200 20 100 ROI: 500 500 200 300 100 180
+#SGF_bw.pgm processed/SGF_smooth_all.pgm uniformSmooth 13
+#SGF_bw.pgm processed/SGF_smooth_roi.pgm uniformSmooth 13 ROI: 20 30 100 100 7 ROI: 200 200 200 200 51 ROI: 500 500 200 300 81
+#SGF_bw.pgm processed/SGF_bi80_200.pgm binarizeDT 80 200
+#SGF_bw.pgm processed/SGF_bw_addvar.pgm add 50 ROI: 100 100 100 100 20 ROI: 200 250 100 100 40 ROI: 300 400 100 100 70 ROI: 400 550 100 100 95 ROI: 500 700 100 100 120 ROI: 600 850 100 100 160
+#SGF_bw.pgm processed/SGF_s200.pgm scale 2
+#SGF_bw.pgm processed/SGF_s50.pgm scale 0.5
+#CaptainUnderpants_bw.pgm processed/CaptainUnderpants_bin.pgm binarizeDT 25 150
+#MadeiraBeachSunset_bw.pgm processed/MadeiraBeachSunset_smooth.pgm uniformSmooth 13 ROI: 1060 0 500 2080 15
+#MadeiraBeachSunset_bw.pgm processed/MadeiraBeachSunset_binrois.pgm binarizeDT 60 175 ROI: 1060 0 500 2080 60 175 ROI: 0 0 1060 2080 120 150
+
+# Color processing for HW1
+#SGF_color.ppm processed/SGF_addvar.ppm add 50 ROI: 100 100 100 100 20 ROI: 200 250 100 100 40 ROI: 300 400 100 100 70 ROI: 400 550 100 100 95 ROI: 500 700 100 100 120 ROI: 600 850 100 100 160
+#SGF_color.ppm processed/SGF_binarizeColor.ppm binarizeColor 50.0 100 100 100
+#SGF_color.ppm processed/SGF_binarizeColor_roi.ppm binarizeColor 50.0 100 100 100 ROI: 50 100 300 300 100.0 60 60 60 ROI: 200 250 350 350 20.0 150 150 150 ROI: 350 450 360 400 150.0 200 80 80
+#CaptainUnderpants_color.ppm processed/CaptainUnderpants_bin.ppm binarizeColor 100.0 120 120 20
+#MadeiraBeachSunset_color.ppm processed/MadeiraBeachSunset_brighten.ppm add 30 ROI: 0 0 780 1040 20 ROI: 0 1040 780 1040 40 ROI: 780 1040 780 1040 80 ROI: 780 0 780 1040 60
+#MadeiraBeachSunset_color.ppm processed/MadeiraBeachSunset_colorbin.ppm binarizeColor 100 180 180 225 ROI: 0 0 1060 2080 100 180 180 225
 
 # Grayscale processing for HW0
 #SGF.pgm SGF_bi50_150.pgm binarizeDT 50 150

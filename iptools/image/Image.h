@@ -281,7 +281,7 @@ public:
 // ImageViewIterator - a forward iterator and input and output iterator.
 //
 // Iterates the ImageView from which it is requested. Iteration order
-// is as expected, across (columsn) then down (rows).
+// is as expected, across (columns) then down (rows).
 //
 template<typename PixelT,typename ImageWindowT = ImageWindow<PixelT> >
 class ImageViewIterator {
@@ -353,8 +353,8 @@ public:
 // Supports:
 // 1) Iteration of the "elastic window".
 // 2) Indexed access to pixels for read or write.
-// 3) Moving operations moveLeft and moveDown (note, no general move or resize supported)
-// 4) Listen callbacks during moveLeft and moveDown operations to track which pixels
+// 3) Moving operations moveRight and moveDown (note, no general move or resize supported)
+// 4) Listen callbacks during moveRight and moveDown operations to track which pixels
 //    have departed the elastic window, and which pixels have entered it.
 //
 template<typename PixelT,
@@ -393,15 +393,15 @@ private:
 
       ++mColPos;
 
-      if(mColPos < mHalfWindowCols) {
-         mElasticHalfWindowCols = mColPos;
-      }
+      unsigned halfCols = (mBounds.cols()-1)/2;
+
+      if(mColPos < mHalfWindowCols) mElasticHalfWindowCols = std::min(mColPos,halfCols);
       else {
          unsigned rColPos = mBounds.cols()-1-mColPos;
-         if(rColPos < mHalfWindowCols) {
-            mElasticHalfWindowCols = rColPos;
-         }
+         if(rColPos < mHalfWindowCols) mElasticHalfWindowCols = std::min(rColPos,halfCols);
          else {
+            // We can only get here if Window is smaller or equal to bounds
+            // so no need to do std::min(mHalfWindowCols,halfCols)
             mElasticHalfWindowCols = mHalfWindowCols;
          }
       }
@@ -438,15 +438,15 @@ private:
 
       ++mRowPos;
 
-      if(mRowPos < mHalfWindowRows) {
-         mElasticHalfWindowRows = mRowPos;
-      }
+      unsigned halfRows = (mBounds.rows()-1)/2;
+
+      if(mRowPos < mHalfWindowRows) mElasticHalfWindowRows = std::min(mRowPos,halfRows);
       else {
          unsigned rRowPos = mBounds.rows()-1-mRowPos;
-         if(rRowPos < mHalfWindowRows) {
-            mElasticHalfWindowRows = rRowPos;
-         }
+         if(rRowPos < mHalfWindowRows) mElasticHalfWindowRows = std::min(rRowPos,halfRows);
          else {
+            // We can only get here if Window is smaller or equal to bounds
+            // so no need to do std::min(mHalfWindowRows,halfRows)
             mElasticHalfWindowRows = mHalfWindowRows;
          }
       }
@@ -477,6 +477,7 @@ private:
 public:
 
    ElasticImageView(unsigned rows,unsigned cols,image_store* store,image_bounds* bounds) :
+      // The below subract by 1 and divide by 2 enforces odd size windows.
       mHalfWindowRows((rows-1)/2),
       mHalfWindowCols((cols-1)/2),
       mElasticHalfWindowRows(0),
@@ -539,19 +540,19 @@ public:
 
 ///////////////////////////////////////////////////////////////////////////////
 // ImageView - a view of an Image is a bounded box that is valid anywhere
-//             within the bounds of an image, and is useful to operate on
-//             regions of an Image.
+//             within the bounds of an image or a parent ImageView, 
+//             and is useful to operate on regions of an Image.
 //
 // Supports:
 // 1) Iteration of the ImageView.
 // 2) Subviews (views of views).
 // 3) Indexed access to pixels for read or write.
-// 4) Copy construction of views
-// 5) Assignment of views of equal size
+// 4) Copy construction of views.
+// 5) Assignment of views of equal size.
 // 6) Moving and Resizing of the View (as long as the ImageView remains
-//    within the ImageBounds of its parent.
+//    within the ImageBounds of its parent).
 // 7) An ImageView's parent can be an Image itself or another ImageView.
-// 8) Can also create ElastiveImageViews
+// 8) Can also create an ElastiveImageViews with itself as its parent.
 //
 template<typename PixelT,
          typename ImageStoreT  = ImageStore<typename std::remove_const<PixelT>::type>,
@@ -700,6 +701,19 @@ public:
       mDefaultView(that.rows(),that.cols(),&mStore,&mStore,mStore.padding(),mStore.padding())
    {}
 
+   template<typename ImageT>
+   Image(const ImageT& that) :
+      mStore(that.rows(),that.cols(),that.padding()),
+      mDefaultView(that.rows(),that.cols(),&mStore,&mStore,that.padding(),that.padding()) {
+      iterator tpos = begin();
+      iterator tend = end();
+      typename ImageT::const_iterator spos = that.begin();
+      // The below allows, conversion between two image pixel types.
+      // However, the Pixels must be implicitly convertible.
+      for(;tpos != tend;++tpos,++spos) *tpos = *spos;
+
+   }
+
    Image& operator=(const Image& that) {
       if(this != &that) {
          // Note: that the ImageStore assignment is what copies all of the data
@@ -716,7 +730,7 @@ public:
          resize(that.rows(),that.cols(),that.padding());
          iterator tpos = begin();
          iterator tend = end();
-         typename ImageT::const_iterator spos;
+         typename ImageT::const_iterator spos = that.begin();
          // The below allows, conversion between two image pixel types.
          // However, the Pixels must be implicitly convertible.
          for(;tpos != tend;++tpos,++spos) *tpos = *spos;

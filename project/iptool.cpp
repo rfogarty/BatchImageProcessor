@@ -12,11 +12,109 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
 
 void printHelpAndExit(const char* execname) {
    std::cerr << "Usage: " << execname << " <operations_file>" << std::endl;
    exit(1);
+}
+
+template<typename ImageT>
+ImageT readImage(const std::string& inputfile,const std::string& line,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_grayscale<typename ImageT::pixel_type>::value,int>::type* = 0) {
+   if(!endsWith(inputfile,".pgm")) {
+      std::stringstream ss;
+      ss << "ERROR: on line: " << line << "\n"
+         << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
+      throw std::invalid_argument(ss.str());
+   }
+   return readPGMFile<typename ImageT::pixel_type>(inputfile);
+}
+
+template<typename ImageT>
+ImageT readImage(const std::string& inputfile,const std::string& line,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_rgba<typename ImageT::pixel_type>::value,int>::type* = 0) {
+   if(!endsWith(inputfile,".ppm")) {
+      std::stringstream ss;
+      ss << "ERROR: on line: " << line << "\n"
+         << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
+      throw std::invalid_argument(ss.str());
+   }
+   return readPPMFile<typename ImageT::pixel_type>(inputfile);
+}
+
+template<typename ImageT>
+void saveImage(const ImageT& image, const std::string& outputfile,const std::string& line,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_grayscale<typename ImageT::pixel_type>::value,int>::type* = 0) {
+   if(!endsWith(outputfile,".pgm")) {
+      std::stringstream ss;
+      ss << "ERROR: on line: " << line << "\n"
+         << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
+      throw std::invalid_argument(ss.str());
+   }
+   writePGMFile(outputfile,image);
+}
+
+template<typename ImageT>
+void saveImage(const ImageT& image, const std::string& outputfile,const std::string& line,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_rgba<typename ImageT::pixel_type>::value,int>::type* = 0) {
+   if(!endsWith(outputfile,".ppm")) {
+      std::stringstream ss;
+      ss << "ERROR: on line: " << line << "\n"
+         << "ERROR: outputfile is expected to be .ppm (color)" << std::endl;
+      throw std::invalid_argument(ss.str());
+   }
+   writePPMFile(outputfile,image);
+}
+
+
+template<typename ActionT>
+void process(const std::string& inputfile,
+             const std::string& outputfile,
+             const std::string& operation,
+             const std::string& line,
+             std::istream& ins,
+             ActionT* action) {
+
+   typedef typename ActionT::src_image_type ImageSrc;
+   typedef typename ActionT::tgt_image_type ImageTgt;
+   typedef Operation<ActionT,ImageSrc,ImageTgt> OperationT;
+
+   OperationT op(action);
+   parseROIsAndParameters(op,action->numParameters(),ins);
+
+   // Lastly, run the Operation!
+   if(operation == "hist") { 
+      ImageTgt tgt(ImageTgt::pixel_type::traits::max(),
+                   ImageTgt::pixel_type::traits::max()+1u);
+      op.run(readImage<ImageSrc>(inputfile,line),tgt);
+      saveImage(tgt,outputfile,line);
+   }
+   else {
+      ImageTgt tgt = op.run(readImage<ImageSrc>(inputfile,line));
+      saveImage(tgt,outputfile,line);
+   }
 }
 
 void parseAndRunOperation(const std::string& line) {
@@ -52,45 +150,21 @@ void parseAndRunOperation(const std::string& line) {
    
    if(startsWith(inputfile,"#")); // commented line, so do nothing
    else if(endsWith(inputfile,".pgm")) {
-      if(!endsWith(outputfile,".pgm")) {
-          std::cerr << "ERROR: on line: " << line << "\n"
-                    << "ERROR: currently processing doesn't support different input and output file types" << std::endl;
-          return;
-      }
 
-      typedef GrayAlphaPixel<unsigned char> PixelT;
+      typedef GrayAlphaPixel<uint8_t> PixelT;
       typedef Image<PixelT> ImageT;
-      typedef Action<ImageT> ActionT;
-      typedef Operation<ActionT> OperationT;
-
-      ActionT* action = 0;
-
       try {
-         if(operation == "add") {
-            action = Intensity<ImageT>::make(ss);
-         }
-         else if(operation == "scale") {
-            action = Scale<ImageT>::make(ss);
-         }
-         else if(operation == "binarize") {
-            action = Binarize<ImageT>::make(ss);
-         }
-         else if(operation == "binarizeDT") {
-            action = BinarizeDT<ImageT>::make(ss);
-         }
-         else if(operation == "uniformSmooth") {
-            action = UniformSmooth<ImageT>::make(ss);
-         }
+         if(operation == "add")                process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
+         else if(operation == "hist")          process(inputfile,outputfile,operation,line,ss,Histogram<ImageT>::make(ss));
+         else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModify<ImageT>::make(ss));
+         else if(operation == "scale")         process(inputfile,outputfile,operation,line,ss,Scale<ImageT>::make(ss));
+         else if(operation == "binarize")      process(inputfile,outputfile,operation,line,ss,Binarize<ImageT>::make(ss));
+         else if(operation == "binarizeDT")    process(inputfile,outputfile,operation,line,ss,BinarizeDT<ImageT>::make(ss));
+         else if(operation == "uniformSmooth") process(inputfile,outputfile,operation,line,ss,UniformSmooth<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;
          }
-         OperationT op(action);
-         parseROIsAndParameters(op,action->numParameters(),ss);
-
-         // Lastly, run the Operation!
-         ImageT tgt = op.run(readPGMFile<PixelT>(inputfile));
-         writePGMFile(outputfile,tgt);
       }
       catch(const ParseError& pe) {
          std::cerr << "ERROR: parsing operation on line: " << line << "\n"
@@ -101,36 +175,19 @@ void parseAndRunOperation(const std::string& line) {
       }
    }
    else if(endsWith(inputfile,".ppm")) {
-      if(!endsWith(outputfile,".ppm")) {
-          std::cerr << "ERROR: on line: " << line << "\n"
-                    << "ERROR: currently processing doesn't support different input and output file types" << std::endl;
-          return;
-      }
 
-      typedef ColorPixel<unsigned char> PixelT;
+      typedef RGBAPixel<uint8_t> PixelT;
       typedef Image<PixelT> ImageT;
-      typedef Action<ImageT> ActionT;
-      typedef Operation<ActionT> OperationT;
-
-      ActionT* action = 0;
 
       try {
-         if(operation == "add") {
-            action = Intensity<ImageT>::make(ss);
-         }
-         else if(operation == "binarizeColor") {
-            action = BinarizeColor<ImageT>::make(ss);
-         }
+         if(operation == "add")                process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
+         else if(operation == "histChan")      process(inputfile,outputfile,operation,line,ss,HistogramChannel<ImageT>::make(ss));
+         else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModifyRGB<ImageT>::make(ss));
+         else if(operation == "binarizeColor") process(inputfile,outputfile,operation,line,ss,BinarizeColor<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;
          }
-         OperationT op(action);
-         parseROIsAndParameters(op,action->numParameters(),ss);
-
-         // Lastly, run the Operation!
-         ImageT tgt = op.run(readPPMFile<PixelT>(inputfile));
-         writePPMFile(outputfile,tgt);
       }
       catch(const ParseError& pe) {
          std::cerr << "ERROR: parsing operation on line: " << line << "\n"
