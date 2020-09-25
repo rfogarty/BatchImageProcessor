@@ -29,11 +29,11 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    double g = (double)rgba.namedColor.green/sumRGB;
    double b = (double)rgba.namedColor.blue/sumRGB;
 
-   double numerator = 0.5 * (2*r -g -b);
+   double numerator = 0.5 * (2*r - g - b );
    double denominator = std::sqrt((r-g)*(r-g) + (r-b)*(g-b));
    double h = std::acos(numerator/denominator);
    if(b > g) h = twoPi() - h;
-   double s = 1.0 - 3.0*std::min(r,g,b);
+   double s = 1.0 - 3.0*std::min(r,std::min(g,b));
    double i = sumRGB/(3*ChannelT1Traits::max());
 
    hsi.namedColor.hue = static_cast<ChannelT1>(h);
@@ -65,7 +65,7 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
 
    double h = hsi.namedColor.hue;
    double s = hsi.namedColor.saturation;
-   double i = hsi.namedColor.hue.intensity;
+   double i = hsi.namedColor.intensity;
    
    double h120 = (h < twoThirdsPi()) ? h : ((h < fourThirdsPi()) ? (h - twoThirdsPi()) : (h - fourThirdsPi()) );
 

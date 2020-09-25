@@ -183,6 +183,7 @@ void parseAndRunOperation(const std::string& line) {
          if(operation == "add")                process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
          else if(operation == "histChan")      process(inputfile,outputfile,operation,line,ss,HistogramChannel<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModifyRGB<ImageT>::make(ss));
+         else if(operation == "histModHSI")    process(inputfile,outputfile,operation,line,ss,HistogramModifyHSI<ImageT>::make(ss));
          else if(operation == "binarizeColor") process(inputfile,outputfile,operation,line,ss,BinarizeColor<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;

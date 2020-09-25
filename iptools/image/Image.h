@@ -138,6 +138,9 @@ public:
 
 // Prototype for Image class
 template<typename PixelT> class Image;
+template<typename PixelT,
+         typename ImageStoreT,
+         typename ImageBoundsT> class ImageView;
 
 ///////////////////////////////////////////////////////////////////////////////
 // ImageWindow - base class for setting up a view of Image data.
@@ -152,6 +155,7 @@ class ImageWindow : public ImageBoundsT {
    // Images are friends of ImageWindows, to allow for Image assignment
    //   which requires the private update of bounds.
    template<typename PixelTT> friend class Image;
+
 public:
    typedef typename std::remove_const<PixelT>::type pixel_type;
    typedef ImageWindow<PixelT,ImageStoreT>          this_type;
@@ -558,9 +562,12 @@ template<typename PixelT,
          typename ImageStoreT  = ImageStore<typename std::remove_const<PixelT>::type>,
          typename ImageBoundsT = ImageBounds<typename std::remove_const<PixelT>::type> >
 class ImageView : public ImageWindow<PixelT> {
-   // Images are friends of ImageWindows, to allow for Image assignment
-   //   which requires the private update of bounds.
-   template<typename PixelTT> friend class Image;
+   // ImageViews are friends of all other ImageView types
+   // for the purpose of self-assignment checks.
+   template<typename PixelTT,
+            typename ImageStoreTT,
+            typename ImageBoundsTT> friend class ImageView;
+
 public:
    typedef typename std::remove_const<PixelT>::type               pixel_type;
    typedef ImageStoreT                                            image_store;
@@ -591,25 +598,45 @@ public:
       if(this != &that) {
          reportIfNotEqual("mRows",this->mRows,that.mRows);
          reportIfNotEqual("mCols",this->mCols,that.mCols);
-         iterator tpos = begin();
-         iterator tend = end();
-         const_iterator spos = that.begin();
-         for(;tpos != tend;++tpos,++spos) *tpos = *spos;
+         if(this->mStore == that.mStore) {
+            // TODO: this should be optimized, however,
+            // if these are the same store, we need to check
+            // that the regions are either non-overlapping or
+            // that the target succeeds the source.
+            Image<pixel_type> copy(that);
+            *this = copy.defaultView();
+         }
+         else {
+            iterator tpos = begin();
+            iterator tend = end();
+            const_iterator spos = that.begin();
+            for(;tpos != tend;++tpos,++spos) *tpos = *spos;
+         }
       }
       return *this;
    }
 
    template<typename ImageViewT>
    ImageView& operator=(const ImageViewT& that) {
-      if(this != &that) {
-         reportIfNotEqual("mRows",this->mRows,that.mRows);
-         reportIfNotEqual("mCols",this->mCols,that.mCols);
+      const unsigned char* thisStore = reinterpret_cast<const unsigned char*>(this->mStore);
+      const unsigned char* thatStore = reinterpret_cast<const unsigned char*>(that.mStore);
+      //const unsigned char* thatStore = reinterpret_cast<const unsigned char*>(that.store());
+      reportIfNotEqual("mRows",this->mRows,that.rows());
+      reportIfNotEqual("mCols",this->mCols,that.cols());
+      if(thisStore != thatStore) {
          iterator tpos = begin();
          iterator tend = end();
          typename ImageViewT::const_iterator spos = that.begin();
          // The below allows, conversion between two image pixel types.
          // However, the Pixels must be implicitly convertible.
          for(;tpos != tend;++tpos,++spos) *tpos = *spos;
+      }
+      else {
+         // Stores are the same, so for now copy pixels
+         // out before copying.
+         // TODO: this can definitely be optimized.
+         Image<pixel_type> copy(that);
+         *this = copy.defaultView();
       }
       return *this;
    }
@@ -701,17 +728,29 @@ public:
       mDefaultView(that.rows(),that.cols(),&mStore,&mStore,mStore.padding(),mStore.padding())
    {}
 
-   template<typename ImageT>
-   Image(const ImageT& that) :
+   template<typename PixelTT>
+   Image(const Image<PixelTT>& that) :
       mStore(that.rows(),that.cols(),that.padding()),
       mDefaultView(that.rows(),that.cols(),&mStore,&mStore,that.padding(),that.padding()) {
       iterator tpos = begin();
       iterator tend = end();
-      typename ImageT::const_iterator spos = that.begin();
+      typename Image<PixelTT>::const_iterator spos = that.begin();
       // The below allows, conversion between two image pixel types.
       // However, the Pixels must be implicitly convertible.
       for(;tpos != tend;++tpos,++spos) *tpos = *spos;
+   }
 
+
+   template<typename PixelTT>
+   Image(const ImageView<PixelTT>& that) :
+      mStore(that.rows(),that.cols(),0),
+      mDefaultView(that.rows(),that.cols(),&mStore,&mStore,0,0) {
+      iterator tpos = begin();
+      iterator tend = end();
+      typename ImageView<PixelTT>::const_iterator spos = that.begin();
+      // The below allows, conversion between two image pixel types.
+      // However, the Pixels must be implicitly convertible.
+      for(;tpos != tend;++tpos,++spos) *tpos = *spos;
    }
 
    Image& operator=(const Image& that) {
@@ -724,20 +763,43 @@ public:
       return *this;
    }
 
-   template<typename ImageT>
-   Image& operator=(const ImageT& that) {
+   template<typename PixelTT>
+   Image& operator=(const Image<PixelTT>& that) {
       if(this != &that) {
          resize(that.rows(),that.cols(),that.padding());
          iterator tpos = begin();
          iterator tend = end();
-         typename ImageT::const_iterator spos = that.begin();
+         typename Image<PixelTT>::const_iterator spos = that.begin();
          // The below allows, conversion between two image pixel types.
          // However, the Pixels must be implicitly convertible.
          for(;tpos != tend;++tpos,++spos) *tpos = *spos;
       }
       return *this;
    }
-  
+
+   template<typename PixelTT>
+   Image& operator=(const ImageView<PixelTT>& that) {
+      if(&this->mStore != that.mStore) {
+         resize(that.rows(),that.cols());
+         iterator tpos = begin();
+         iterator tend = end();
+         typename ImageView<PixelTT>::const_iterator spos = that.begin();
+         // The below allows, conversion between two image pixel types.
+         // However, the Pixels must be implicitly convertible.
+         for(;tpos != tend;++tpos,++spos) *tpos = *spos;
+      }
+      else {
+         // Apparently we are trying to assign a view of ourself to our own image
+         // The only way to do this is to simply clone ourself and then assign
+         // TODO: one caveat to this, is that for now we will lose padding. However,
+         // we aren't even using this feature yet...
+         Image clonedView(that);
+         *this = clonedView;
+      }
+      return *this;
+   }
+ 
+
    // ***************************************************************************
    // Note: despite the rule of three, in this case we don't need a destructor...
    // ***************************************************************************

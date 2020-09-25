@@ -182,7 +182,7 @@ void histogramModify(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
 }
 
 template<typename SrcPixelT,typename TgtPixelT,typename Bounds,typename Constraints>
-inline void linearlyStretch(const SrcPixelT& src,TgtPixelT& tgt,float rescale,Bounds min, Bounds max,Constraints low,Constraints high) {
+inline void linearlyStretch(const SrcPixelT& src,TgtPixelT& tgt,double rescale,Bounds min, Bounds max,Constraints low,Constraints high) {
    if(src <= low) tgt = min;
    else if(src <= high) tgt = static_cast<Bounds>(rescale * (src - low));
    else tgt = max;
@@ -204,7 +204,9 @@ void histogramModifyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
    typename TgtImageT::iterator tpos = tgt.begin();
 
    // Algorithm
-   float rescale = (float) TgtImageT::pixel_type::traits::max()/(high - low);
+   double rescale = ((double) TgtImageT::pixel_type::traits::max() - 
+                     (double) TgtImageT::pixel_type::traits::min()) /
+                              (high - low);
 
    typename TgtImageT::pixel_type::value_type min = TgtImageT::pixel_type::traits::min();
    typename TgtImageT::pixel_type::value_type max = TgtImageT::pixel_type::traits::max();
@@ -214,6 +216,49 @@ void histogramModifyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
       linearlyStretch(spos->namedColor.green,tpos->namedColor.green,rescale,min,max,low,high);
       linearlyStretch(spos->namedColor.blue,tpos->namedColor.blue,rescale,min,max,low,high);
    }
+}
+
+template<typename SrcImageT,typename TgtImageT,typename Value>
+void histogramModifyHSI(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   reportIfNotLessThan("cols!=max",low,high);
+
+   // Algorithm
+   // Idea here is simple. 
+   // 1) Convert image from RGBA to HSI
+   // 2) histogram stretch just the intensity channel
+   // 3) convert HSI back into RGBA
+   typedef HSIPixel<double> IntensityPixel;
+   typedef Image<IntensityPixel> HSIImage;
+
+   HSIImage hsiImage(src);
+
+   double rescale = ((double) TgtImageT::pixel_type::traits::max() - 
+                     (double) TgtImageT::pixel_type::traits::min()) /
+                                   (high - low);
+
+   double low2 = (double)low/TgtImageT::pixel_type::traits::max();
+   double high2 = (double)high/TgtImageT::pixel_type::traits::max();
+
+   typename HSIImage::pixel_type::value_type min = HSIImage::pixel_type::traits::min();
+   typename HSIImage::pixel_type::value_type max = HSIImage::pixel_type::traits::max();
+
+   typename HSIImage::iterator spos = hsiImage.begin();
+   typename HSIImage::iterator send = hsiImage.end();
+
+   for(;spos != send;++spos) {
+      linearlyStretch(spos->namedColor.intensity,
+                      spos->namedColor.intensity,
+                      rescale,min,max,low2,high2);
+   }
+
+   tgt = hsiImage.defaultView();
 }
 
 
@@ -838,6 +883,7 @@ public:                                                                         
 
 HISTACTION(HistogramModify,histogramModify)
 HISTACTION(HistogramModifyRGB,histogramModifyRGB)
+HISTACTION(HistogramModifyHSI,histogramModifyHSI)
 
 
 template<typename ImageT>
