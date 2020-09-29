@@ -6,6 +6,9 @@
 
 #   include <type_traits>
 
+
+#define CONST_VAL_FUNC constexpr const
+
 #else
 
 namespace std {
@@ -82,6 +85,7 @@ namespace std {
  
 }
 
+#define CONST_VAL_FUNC inline const
 
 #endif
 

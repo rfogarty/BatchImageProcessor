@@ -295,6 +295,22 @@ void moveColorView() {
 }
 
 
+void testRGBA2HSI(uint8_t r,uint8_t g, uint8_t b) {
+
+   typedef RGBAPixel<uint8_t> RGBAT;
+   typedef HSIPixel<float> HSIT;
+
+   RGBAT rgb1;
+   rgb1.namedColor.red = r;
+   rgb1.namedColor.green = g;
+   rgb1.namedColor.blue = b;
+   HSIT hsi(rgb1);
+   RGBAT rgb2(hsi);
+   std::cout << "hsi: " << hsi << std::endl;
+   std::cout << "rgb1: " << rgb1 << std::endl;
+   std::cout << "rgb2: " << rgb2 << std::endl;
+   reportIfNotEqual("rgb1 != rgb2",rgb1,rgb2);
+}
 
 
 
@@ -316,6 +332,27 @@ int main() {
       copyConstructColorImages();
       assignColorImages();
       moveColorView();
+      
+      testRGBA2HSI(0,0,0);
+      
+      testRGBA2HSI(255,0,0);
+      testRGBA2HSI(0,255,0);
+      testRGBA2HSI(0,0,255);
+      
+      testRGBA2HSI(255,255,0);
+      testRGBA2HSI(0,255,255);
+      testRGBA2HSI(255,0,255);
+
+      testRGBA2HSI(128,0,0);
+      testRGBA2HSI(0,128,0);
+      testRGBA2HSI(0,0,128);
+      
+
+      testRGBA2HSI(100,100,100);
+      testRGBA2HSI(255,255,255);
+
+      testRGBA2HSI(128,100,50);
+      
    }
    catch(const std::exception& e) {
       std::cerr << "ERROR: " << e.what() << std::endl;

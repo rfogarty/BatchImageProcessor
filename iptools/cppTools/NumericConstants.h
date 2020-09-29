@@ -1,40 +1,18 @@
 #pragma once
 
-#if __cplusplus >= 201103L
-   constexpr
-#else
-   inline
-#endif
-   const double pi()           { return 3.141592653589793; }
+#include "TemplateMetaprogramming.h"
 
-#if __cplusplus >= 201103L
-   constexpr
-#else
-   inline
-#endif
-   const double twoPi()        { return 6.283185307179586; }
+CONST_VAL_FUNC double pi()           { return 3.141592653589793; }
 
-#if __cplusplus >= 201103L
-   constexpr
-#else
-   inline
-#endif
-   const double oneThirdsPi()  { return 1.0471975511965976; }
+CONST_VAL_FUNC double twoPi()        { return 6.283185307179586; }
 
-#if __cplusplus >= 201103L
-   constexpr
-#else
-   inline
-#endif
-   const double twoThirdsPi()  { return 2.0943951023931953; }
+CONST_VAL_FUNC double oneThirdsPi()  { return 1.0471975511965976; }
 
-#if __cplusplus >= 201103L
-   constexpr
-#else
-   inline
-#endif
-   const double fourThirdsPi() { return 4.1887902047863905; }
+CONST_VAL_FUNC double twoThirdsPi()  { return 2.0943951023931953; }
 
+CONST_VAL_FUNC double fourThirdsPi() { return 4.1887902047863905; }
 
+CONST_VAL_FUNC double oneThirds() { return 0.3333333; }
 
+CONST_VAL_FUNC double twoThirds() { return 0.6666667; }
 

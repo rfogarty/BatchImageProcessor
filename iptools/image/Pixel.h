@@ -6,6 +6,23 @@
 #include <limits>
 #include <ostream>
 
+// The following types may be used to scale up the primitive Channel type
+// so that an accumulated value can be calculated. Also, this is used to
+// print values to avoid printing char types, e.g.
+// TODO: since this variable type has more responsibility than choosing an
+// accumulator type, this name should be changed.
+template<typename PixelT,typename ChannelT = typename PixelT::value_type>
+struct AccumulatorVariableSelect { typedef ChannelT type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint8_t>  { typedef uint32_t type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint16_t> { typedef uint32_t type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint32_t> { typedef uint64_t type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int8_t>   { typedef int32_t  type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int16_t>  { typedef int32_t  type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int32_t>  { typedef int64_t  type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,float>    { typedef double   type; };
+template<typename PixelT> struct AccumulatorVariableSelect<PixelT,double>   { typedef double   type; };
+
+
 template<typename ChannelT>
 struct ChannelTraits {
    typedef ChannelT value_type;
@@ -131,17 +148,21 @@ template <class T> struct is_rgba<RGBAPixel<T> >            : public std::true_t
 
 template<typename ChannelT,typename ChannelTraitsT>
 std::ostream& operator<<(std::ostream& os,const RGBAPixel<ChannelT,ChannelTraitsT>& pixel) {
-
+   typedef typename AccumulatorVariableSelect<RGBAPixel<ChannelT,ChannelTraitsT> >::type ResoluteType;
    os << "Color(" 
-      << pixel.namedColor.red << ","
-      << pixel.namedColor.green << ","
-      << pixel.namedColor.blue << ","
-      << pixel.namedColor.alpha << ")";
+      << (ResoluteType)pixel.namedColor.red << ","
+      << (ResoluteType)pixel.namedColor.green << ","
+      << (ResoluteType)pixel.namedColor.blue << ","
+      << (ResoluteType)pixel.namedColor.alpha << ")";
 
    return os;
 }
 
-
+// Note, values of Saturation are assumed to be "normalized" or (0,1)
+// over the entire space. The unnormalized value which is computed
+// from the rgba2hsi, needs to be compensated before storage into
+// this class. Also, hsi2rgba similarly needs to be compensated
+// before being applied.
 template<typename ChannelT,typename ChannelTraitsT = ChannelTraits<ChannelT> >
 struct HSIPixel {
    
@@ -229,12 +250,12 @@ template <class T> struct is_hsi<HSIPixel<T> >              : public std::true_t
 
 template<typename ChannelT,typename ChannelTraitsT>
 std::ostream& operator<<(std::ostream& os,const HSIPixel<ChannelT,ChannelTraitsT>& pixel) {
-
+   typedef typename AccumulatorVariableSelect<RGBAPixel<ChannelT,ChannelTraitsT> >::type ResoluteType;
    os << "HSI_Color(" 
-      << pixel.namedColor.hue << ","
-      << pixel.namedColor.saturation << ","
-      << pixel.namedColor.intensity << ","
-      << pixel.namedColor.alpha << ")";
+      << (ResoluteType)pixel.namedColor.hue << ","
+      << (ResoluteType)pixel.namedColor.saturation << ","
+      << (ResoluteType)pixel.namedColor.intensity << ","
+      << (ResoluteType)pixel.namedColor.alpha << ")";
 
    return os;
 }
@@ -324,10 +345,10 @@ template <class T> struct is_grayscale<GrayAlphaPixel<T> >   : public std::true_
 
 template<typename ChannelT,typename ChannelTraitsT>
 std::ostream& operator<<(std::ostream& os,const GrayAlphaPixel<ChannelT,ChannelTraitsT>& pixel) {
-
+   typedef typename AccumulatorVariableSelect<RGBAPixel<ChannelT,ChannelTraitsT> >::type ResoluteType;
    os << "Grayscale(" 
-      << pixel.namedColor.gray << ","
-      << pixel.namedColor.alpha << ")";
+      << (ResoluteType)pixel.namedColor.gray << ","
+      << (ResoluteType)pixel.namedColor.alpha << ")";
 
    return os;
 }
@@ -388,9 +409,9 @@ template <class T> struct is_monochrome<MonochromePixel<T> > : public std::true_
 
 template<typename ChannelT,typename ChannelTraitsT>
 std::ostream& operator<<(std::ostream& os,const MonochromePixel<ChannelT,ChannelTraitsT>& pixel) {
-
+   typedef typename AccumulatorVariableSelect<RGBAPixel<ChannelT,ChannelTraitsT> >::type ResoluteType;
    os << "Monochrome(" 
-      << pixel.namedColor.mono << ")";
+      << (ResoluteType)pixel.namedColor.mono << ")";
 
    return os;
 }
@@ -443,16 +464,5 @@ struct ParametricGrayAlphaPixel {
 
 
 
-
-template<typename PixelT,typename ChannelT = typename PixelT::value_type>
-struct AccumulatorVariableSelect { typedef ChannelT type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint8_t>  { typedef uint32_t type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint16_t> { typedef uint32_t type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint32_t> { typedef uint64_t type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int8_t>   { typedef int32_t  type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int16_t>  { typedef int32_t  type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int32_t>  { typedef int64_t  type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,float>    { typedef double   type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,double>   { typedef double   type; };
 
 

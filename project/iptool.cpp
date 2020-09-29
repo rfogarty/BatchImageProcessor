@@ -105,8 +105,8 @@ void process(const std::string& inputfile,
    parseROIsAndParameters(op,action->numParameters(),ins);
 
    // Lastly, run the Operation!
-   if(operation == "hist") { 
-      ImageTgt tgt(ImageTgt::pixel_type::traits::max(),
+   if(operation == "hist" || operation == "histChan") { 
+      ImageTgt tgt(ImageTgt::pixel_type::traits::max()+1u,
                    ImageTgt::pixel_type::traits::max()+1u);
       op.run(readImage<ImageSrc>(inputfile,line),tgt);
       saveImage(tgt,outputfile,line);

@@ -108,8 +108,8 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned channel,
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   reportIfNotEqual("cols!=max",tgt.cols(),(unsigned)TgtImageT::pixel_type::traits::max()+1u);
-   reportIfNotLessThan("channel < maxChannels",channel,(unsigned)TgtImageT::pixel_type::MAX_CHANNELS);
+   reportIfNotEqual("cols!=max",tgt.cols(),(unsigned)SrcImageT::pixel_type::traits::max()+1u);
+   reportIfNotLessThan("channel < maxChannels",channel,(unsigned)SrcImageT::pixel_type::MAX_CHANNELS);
  
    typename SrcImageT::const_iterator spos = src.begin();
    typename SrcImageT::const_iterator send = src.end();
@@ -184,7 +184,7 @@ void histogramModify(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
 template<typename SrcPixelT,typename TgtPixelT,typename Bounds,typename Constraints>
 inline void linearlyStretch(const SrcPixelT& src,TgtPixelT& tgt,double rescale,Bounds min, Bounds max,Constraints low,Constraints high) {
    if(src <= low) tgt = min;
-   else if(src <= high) tgt = static_cast<Bounds>(rescale * (src - low));
+   else if(src <= high) tgt = std::min(max,static_cast<Bounds>(rescale * (src - low)));
    else tgt = max;
 }
 
@@ -239,12 +239,12 @@ void histogramModifyHSI(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
 
    HSIImage hsiImage(src);
 
-   double rescale = ((double) TgtImageT::pixel_type::traits::max() - 
-                     (double) TgtImageT::pixel_type::traits::min()) /
+   double rescale = ((double) SrcImageT::pixel_type::traits::max() - 
+                     (double) SrcImageT::pixel_type::traits::min()) /
                                    (high - low);
 
-   double low2 = (double)low/TgtImageT::pixel_type::traits::max();
-   double high2 = (double)high/TgtImageT::pixel_type::traits::max();
+   double lowNorm = (double)low/SrcImageT::pixel_type::traits::max();
+   double highNorm = (double)high/SrcImageT::pixel_type::traits::max();
 
    typename HSIImage::pixel_type::value_type min = HSIImage::pixel_type::traits::min();
    typename HSIImage::pixel_type::value_type max = HSIImage::pixel_type::traits::max();
@@ -255,7 +255,7 @@ void histogramModifyHSI(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
    for(;spos != send;++spos) {
       linearlyStretch(spos->namedColor.intensity,
                       spos->namedColor.intensity,
-                      rescale,min,max,low2,high2);
+                      rescale,min,max,lowNorm,highNorm);
    }
 
    tgt = hsiImage.defaultView();
