@@ -1,12 +1,40 @@
 Future TODOs
 ===============
-* Should have conversion functions between image and pixel types.
+DONE * Should have conversion functions between image and pixel types.
 ** For converting between image types, there are really 3 things to consider:
    1) Channel bitdepth or resolution
    2) Color, grayscale, or other format (HSI/HSL/HSV, CMYK, etc.)
    3) Actual image format, which is really a separate issue and should be resolved in the writing functions
-* Test with AddressSanitizer to ensure absolutely no bad memory accesses
-* Test with Valgrind to ensure no memory leaks or bad array indexing
+DONE * Test with AddressSanitizer to ensure absolutely no bad memory accesses
+DONE * Test with Valgrind to ensure no memory leaks or bad array indexing - see results below.
+
+HW#2
+
+1. Histogram modification [5 points]
+
+DONE  * Add histogram stretching for grey level images to your choice of options
+DONE  * Stretching is defined by user provided intensity range parameters (a, b): stretch the intensities in the range between
+     a and b on the input image to the range of 0 to 255 as output. [0,a] -> 0, [a,b] -> [0,255], [b,255] -> 255
+DONE    ** Your program should apply the procedure within ROI (up to three ROI as Hw1)
+DONE    ** Generate image of the histograms for the ROI before and after the procedure, this is good for debugging
+       and illustrations
+  * Test your program on some grey level images.
+
+2.Color Processing [5 points]
+
+  * operate within specified ROIs (up to three ROIs)
+DONE  * Apply the histogram stretching to R,G,B components independently, then combine in one color image,
+    experiment and discuss results
+DONE  * Implement RGB to HSI conversion
+  * Apply intensity histogram stretching by applying it to the I-component, display I as grey level image, then
+    convert back to RGB for display. Compare utilization of RGB vs HSI for histogram stretching.
+  * [extra credit - 1 point] Perform histogram stretching on both I and S components. How about including all three
+    I, S and H components? Experiment.
+
+3. Make sure that you have complete report for this assignment (not just few comments).
+
+  * Include input and output images (use several gray level images).
+  * Discuss performance of histogram processing on grey level and color images
 
 
 
@@ -40,10 +68,29 @@ DONE   b. Add color binarization option to your image processing toolbox. Let th
 4. Write the report for this assignment
 DONE   a. Create a "readme" file specifying format of the parameter file, describe all parameters and all run options (include
       in the report).
-   b. Give an example of the parameter file set to process with several images with varying functions and parameters.
-   c. Describe all operations and your implementation.
-   d. Do include input and output example images for each function implemented (use several gray level and color images
+DONE   b. Give an example of the parameter file set to process with several images with varying functions and parameters.
+DONE   c. Describe all operations and your implementation.
+DONE   d. Do include input and output example images for each function implemented (use several gray level and color images
       and at least two different parameters as appropriate, multiple ROIs, etc.)
-   e. Utilize your cell phone or web cam to capture sample images suitable for testing your software
+DONE   e. Utilize your cell phone or web cam to capture sample images suitable for testing your software
       discuss results and performance of all operation
+
+
+# Valgrind results (git revision hash: d48eaec8015d75f57e0971d61d07f26cf34046a2)
+/home/rfogarty/Documents/USF/ImageProcessing/BatchImageProcessor/project/bin/iptool
+Running: time iptool parameters.txt
+==146579== Memcheck, a memory error detector
+==146579== Copyright (C) 2002-2017, and GNU GPL'd, by Julian Seward et al.
+==146579== Using Valgrind-3.16.1 and LibVEX; rerun with -h for copyright info
+==146579== Command: iptool parameters.txt
+==146579== 
+==146579== 
+==146579== HEAP SUMMARY:
+==146579==     in use at exit: 0 bytes in 0 blocks
+==146579==   total heap usage: 252 allocs, 252 frees, 83,752,794 bytes allocated
+==146579== 
+==146579== All heap blocks were freed -- no leaks are possible
+==146579== 
+==146579== For lists of detected and suppressed errors, rerun with: -s
+==146579== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
 
