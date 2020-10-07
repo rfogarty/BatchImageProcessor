@@ -1,6 +1,9 @@
 #pragma once
 
 #include "image/Image.h"
+#include "image/Pixel.h"
+#include "image/PixelReader.h"
+#include "image/PixelWriter.h"
 #include "utility/StringParse.h"
 #include <fstream>
 #include <string>
@@ -29,7 +32,6 @@ void readPNMHeader(std::istream& ifs,const std::string& filename,
    std::getline(ifs,line);
 }
 
-
 template<typename PixelT> 
 Image<PixelT> readPPMFile(const std::string& filename) {
    /* PPM Color Image */
@@ -57,20 +59,12 @@ Image<PixelT> readPPMFile(const std::string& filename) {
    // Copy all the image buffer data into the Image<PixelT> object
    typedef Image<PixelT> ImageT;
    ImageT image(rows,cols);
-   
-   typename ImageT::iterator tpos = image.begin();
-   typename ImageT::iterator tend = image.end();
-   BufferT::const_iterator spos = buffer.begin();
-
-   for(;tpos != tend;++tpos) {
-      PixelT& pixel = *tpos;
-      pixel.namedColor.red = *spos; ++spos;
-      pixel.namedColor.green = *spos; ++spos;
-      pixel.namedColor.blue = *spos; ++spos;
-   }
+  
+   PixelReader<ImageT>::readRGBPixels(image,buffer);
 
    return image;
 }
+
 
 template<typename PixelT>
 Image<PixelT> readPGMFile(const std::string& filename) {
@@ -83,7 +77,7 @@ Image<PixelT> readPGMFile(const std::string& filename) {
    pgm_file.open(filename.c_str(), std::ios_base::in | std::ios_base::binary);
    if (!pgm_file.is_open()) {
       std::stringstream ss;
-      ss << "Filename \"" << filename << "\" could not be opened correctly";
+      ss << "Filename \"" << filename << "\" could not be written. Check path or permissions.";
       throw std::invalid_argument(ss.str().c_str());
    }
 
@@ -101,21 +95,14 @@ Image<PixelT> readPGMFile(const std::string& filename) {
    typedef Image<PixelT> ImageT;
    ImageT image(rows,cols);
    
-   typename ImageT::iterator tpos = image.begin();
-   typename ImageT::iterator tend = image.end();
-   BufferT::const_iterator spos = buffer.begin();
-
-   for(;tpos != tend;++tpos) {
-      PixelT& pixel = *tpos;
-      pixel.namedColor.gray = *spos; ++spos;
-   }
-
+   PixelReader<ImageT>::readGrayPixels(image,buffer);
+   
    return image;
 }
 
 
-template<typename PixelT>
-void writePPMFile(const std::string& filename,const Image<PixelT>& image) {
+template<typename ImageT>
+void writePPMFile(const std::string& filename,const ImageT& image) {
    if (!endsWith(filename, ".ppm"))
       throw std::invalid_argument("Incorrect file extension, expecting .ppm");
 
@@ -123,7 +110,7 @@ void writePPMFile(const std::string& filename,const Image<PixelT>& image) {
    outfile.open(filename.c_str(), std::ios_base::out | std::ios_base::binary);
    if (!outfile.is_open()) {
       std::stringstream ss;
-      ss << "Filename \"" << filename << "\" could not write to correctly";
+      ss << "Filename \"" << filename << "\" could not be written. Check path or permissions.";
       throw std::invalid_argument(ss.str().c_str());
    }
 
@@ -131,22 +118,15 @@ void writePPMFile(const std::string& filename,const Image<PixelT>& image) {
    outfile << image.cols() << " " << image.rows() << "\n";
    outfile << "255\n";
 
-   typename Image<PixelT>::const_iterator pos = image.begin();
-   typename Image<PixelT>::const_iterator end = image.end();
-
-   for(;pos != end;++pos) {
-      // TODO: note Pixel ChannelT in this type has to be uint8_t
-      // At some point may need to have Pixel conversion functions.
-      outfile << pos->namedColor.red;
-      outfile << pos->namedColor.green;
-      outfile << pos->namedColor.blue;
-   }
+   PixelWriter<ImageT>::writeRGBPixels(outfile,image);
 
    outfile.close();
 }
 
-template<typename PixelT>
-void writePGMFile(const std::string& filename,const Image<PixelT>& image) {
+
+
+template<unsigned channel,typename ImageT>
+void writePGMFile(const std::string& filename,const ImageT& image) {
    if (!endsWith(filename, ".pgm"))
       throw std::invalid_argument("Incorrect file extension, expecting .pgm");
 
@@ -154,7 +134,7 @@ void writePGMFile(const std::string& filename,const Image<PixelT>& image) {
    outfile.open(filename.c_str(), std::ios_base::out | std::ios_base::binary);
    if (!outfile.is_open()) {
       std::stringstream ss;
-      ss << "Filename \"" << filename << "\" could not write to correctly";
+      ss << "Filename \"" << filename << "\" could not be written. Check path or permissions.";
       throw std::invalid_argument(ss.str().c_str());
    }
 
@@ -162,14 +142,7 @@ void writePGMFile(const std::string& filename,const Image<PixelT>& image) {
    outfile << image.cols() << " " << image.rows() << "\n";
    outfile << "255\n";
 
-   typename Image<PixelT>::const_iterator pos = image.begin();
-   typename Image<PixelT>::const_iterator end = image.end();
-
-   for(;pos != end;++pos) {
-      // TODO: note Pixel ChannelT in this type has to be uint8_t
-      // At some point may need to have Pixel conversion functions.
-      outfile << pos->namedColor.gray;
-   }
+   PixelWriter<ImageT>::writeGrayPixels(outfile,image,channel);
 
    outfile.close();
 }

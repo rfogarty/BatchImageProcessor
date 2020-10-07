@@ -198,7 +198,7 @@ void testViewIteratorGrayscale() {
    }
    reportIfNotEqual("view.size() == iterations",iterations,view.size());
 
-   writePGMFile("UnitTestGrayscale1.pgm",image);
+   writePGMFile<PixelT::GRAY_CHANNEL>("UnitTestGrayscale1.pgm",image);
 }
 
 

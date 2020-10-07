@@ -6,6 +6,7 @@
 #include "utility/Error.h"
 #include "utility/StringParse.h"
 #include <cmath>
+#include <iostream>
 
 namespace algorithm {
 
@@ -44,6 +45,27 @@ void add(const SrcImageT& src, TgtImageT& tgt, Value value,
    }
 }
 
+
+// Thinking 4 billion is more than big enough for any histogram height
+typedef std::vector<uint32_t> HistogramT;
+
+template<typename SrcImageT>
+HistogramT computeHistogram(const SrcImageT& src,unsigned cols,unsigned channel,uint32_t& maxColumnHeight) {
+
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+
+   // Compute Histogram
+   HistogramT histogram(cols,0u);
+   maxColumnHeight = 0;
+   for(;spos != send;++spos) {
+      ++histogram[spos->indexedColor[channel]];
+      if(histogram[spos->indexedColor[channel]] > maxColumnHeight) ++maxColumnHeight;
+   }
+   return histogram;
+}
+
+
 template<typename SrcImageT,typename TgtImageT>
 void histogram(const SrcImageT& src, TgtImageT& tgt,
          // This ugly bit is an unnamed argument with a default which means it neither           
@@ -55,23 +77,12 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,
 
    reportIfNotEqual("cols!=max",tgt.cols(),(unsigned)TgtImageT::pixel_type::traits::max()+1u);
  
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-
-   // Thinking 4 billion is more than big enough for histogram height
-   typedef std::vector<unsigned int> HistogramT;
-   typedef typename HistogramT::iterator HistogramIterator;
-   
    // First compute Histogram
-   HistogramT histogram(TgtImageT::pixel_type::traits::max()+1,0u);
-   unsigned int maxColumnHeight = 0;
-   for(;spos != send;++spos) {
-      ++histogram[spos->namedColor.gray];
-      if(histogram[spos->namedColor.gray] > maxColumnHeight) ++maxColumnHeight;
-   }
+   uint32_t maxColumnHeight = 0;
+   HistogramT histogram(computeHistogram(src,TgtImageT::pixel_type::traits::max()+1u,SrcImageT::pixel_type::GRAY_CHANNEL,maxColumnHeight));
 
-   // Now we need to normalize the Histogram to the bounds of the rows dimension
-
+   // Now we need to normalize the Histogram to the bounds of the rows dimension, to scale to drawing
+   typedef typename HistogramT::iterator HistogramIterator;
    HistogramIterator hpos = histogram.begin();
    const HistogramIterator hend = histogram.end();
    float normScale = (float) tgt.rows() / maxColumnHeight;
@@ -111,23 +122,12 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned channel,
    reportIfNotEqual("cols!=max",tgt.cols(),(unsigned)SrcImageT::pixel_type::traits::max()+1u);
    reportIfNotLessThan("channel < maxChannels",channel,(unsigned)SrcImageT::pixel_type::MAX_CHANNELS);
  
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-
-   // Thinking 4 billion is more than big enough for histogram height
-   typedef std::vector<unsigned int> HistogramT;
-   typedef typename HistogramT::iterator HistogramIterator;
-   
    // First compute Histogram
-   HistogramT histogram(TgtImageT::pixel_type::traits::max()+1,0u);
-   unsigned int maxColumnHeight = 0;
-   for(;spos != send;++spos) {
-      ++histogram[spos->indexedColor[channel]];
-      if(histogram[spos->indexedColor[channel]] > maxColumnHeight) ++maxColumnHeight;
-   }
+   uint32_t maxColumnHeight = 0;
+   HistogramT histogram(computeHistogram(src,TgtImageT::pixel_type::traits::max()+1u,channel,maxColumnHeight));
 
    // Now we need to normalize the Histogram to the bounds of the rows dimension
-
+   typedef typename HistogramT::iterator HistogramIterator;
    HistogramIterator hpos = histogram.begin();
    const HistogramIterator hend = histogram.end();
    float normScale = (float) tgt.rows() / maxColumnHeight;
@@ -314,6 +314,130 @@ void binarize(const SrcImageT& src, TgtImageT& tgt, unsigned threshold,
 
    }
 }
+
+/*-----------------------------------------------------------------------**/
+template<typename SrcImageT,typename TgtImageT>
+void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
+              // This ugly bit is an unnamed argument with a default which means it neither           
+              // contributes to the mangled declaration name nor requires an argument. So what is the 
+              // point? It still participates in SFINAE to help select that this is an appropriate    
+              // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+              // deduction so can't be applied to in parameter directly.                              
+              typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   typedef typename SrcImageT::pixel_type PixelT;
+   typedef typename PixelT::value_type    ValueT;
+
+   //std::cout << "Searching for optimal threshold" << std::endl;
+   // First compute the average as starting threshold
+   typedef typename AccumulatorVariableSelect<typename SrcImageT::pixel_type>::type AccumulatorT;
+   AccumulatorT accum = 0;
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   unsigned number = 0;
+   for(;spos != send;++spos,++number) {
+      accum += spos->namedColor.gray;
+   }
+   
+   ValueT threshold = static_cast<ValueT>((double)accum/number);
+   ValueT thresholdLast = 0;
+   // TODO: come up with a generic way to specify a more intelligent thresholdCondition.
+   // E.g. does this work properly for larger bit depths, and also for float pointing types???
+   ValueT thresholdCondition = (SrcImageT::pixel_type::traits::max() - SrcImageT::pixel_type::traits::min())/255;
+   // Now create loop checking stop condition.
+   // Note a ternary expression is used to ensure unsigned math is performed correctly.
+   while((thresholdLast > threshold ? thresholdLast - threshold : threshold - thresholdLast) > thresholdCondition) {
+      //std::cout << "New threshold: " << (int) threshold << std::endl;
+      // First save off thresholdLast
+      thresholdLast = threshold;
+      // Now compute new threshold
+      typename SrcImageT::const_iterator sposl = src.begin();
+      typename SrcImageT::const_iterator sendl = src.end();
+      AccumulatorT accumBG = 0;
+      AccumulatorT accumFG = 0;
+      unsigned numberBG = 0;
+      unsigned numberFG = 0;
+      for(;sposl != sendl;++sposl) {
+         if(sposl->namedColor.gray < threshold) accumBG += sposl->namedColor.gray,++numberBG;
+         else accumFG += sposl->namedColor.gray,++numberFG;
+      }
+      // Now compute new threshold
+      threshold = static_cast<ValueT>(((double)accumFG/numberFG + (double)accumBG/numberBG)/2);
+   }
+
+   // Now do the actual binarization based on threshold.
+   spos = src.begin();
+   typename TgtImageT::iterator tpos = tgt.begin();
+   for(;spos != send;++spos,++tpos) {
+      if(spos->namedColor.gray < threshold) tpos->namedColor.gray = TgtImageT::pixel_type::traits::min();
+      else                                  tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
+   }
+}
+
+/*-----------------------------------------------------------------------**/
+template<typename SrcImageT,typename TgtImageT>
+void otsuBinarize(const SrcImageT& src, TgtImageT& tgt,
+              // This ugly bit is an unnamed argument with a default which means it neither           
+              // contributes to the mangled declaration name nor requires an argument. So what is the 
+              // point? It still participates in SFINAE to help select that this is an appropriate    
+              // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+              // deduction so can't be applied to in parameter directly.                              
+              typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   // First compute histogram:
+   uint32_t maxChannelHeight = 0u;
+   unsigned maxColor = SrcImageT::pixel_type::traits::max();
+   HistogramT histogram(computeHistogram(src,maxColor + 1u,SrcImageT::pixel_type::GRAY_CHANNEL,maxChannelHeight));
+
+   // Otsu Algorithm, find max sigma(t) = w1(t)*w2(t)*(u1(t) - u2(t))^2
+   // so need to quickly compute u1 and u2, and w1(t) and w2(t)
+   // Note: w1 and w2 will be later normalized by size
+   unsigned w1 = 0;
+   unsigned w2 = 0;
+   // Using a "BigAccumulator", because for very large images, say 10000x10000, we could easily
+   // exceed the max range of normal Accumulator.
+   typedef typename BigAccumulatorVariableSelect<typename SrcImageT::pixel_type>::type AccumulatorT;
+   // Note: u1/u2 need to be normalized by w1/w2 to compute means
+   AccumulatorT u1 = 0;
+   AccumulatorT u2 = 0;
+
+   // Initialize accumulator of u2 and w2
+   for(unsigned t = 0;t < maxColor;++t) {
+      w2 += histogram[t];
+      u2 += histogram[t]*t;
+   }
+   // Now compute means using incremental solution (much like a sliding average, except
+   // copmuting average of subset by iterating histogram).
+   unsigned maxThreshold = 0;
+   double maxSigma = 0.0;
+   unsigned size = src.size();
+   for(unsigned t = 0;t < maxColor;++t) {
+      w1 += histogram[t];
+      u1 += histogram[t]*t;
+      w2 -= histogram[t];
+      u2 -= histogram[t]*t;
+      // Need to protect the divide by zero pathological case, which is why the ternary expresions.
+      double meanDiff = ((double)u1/(w1 > 0 ? w1 : 1) - (double)u2/(w2 > 0 ? w2 : 1));
+      double sigma = (double)w1/size*(double)w2/size*meanDiff*meanDiff;
+      //std::cout << "sigma(t) = " << sigma << "(" << t+1 << ")" << std::endl;
+      if(sigma > maxSigma) maxSigma = sigma, maxThreshold = t+1;
+   }
+
+   //std::cout << "Otsu threshold(sigma)=" << maxThreshold << "(" << maxSigma << ")" << std::endl;
+
+   // Now do the actual binarization based on threshold.
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
+   for(;spos != send;++spos,++tpos) {
+      if(spos->namedColor.gray < maxThreshold) tpos->namedColor.gray = TgtImageT::pixel_type::traits::min();
+      else                                     tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
+   }
+}
+
+
+
+
 
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
@@ -1001,6 +1125,82 @@ public:
    static Binarize* make(std::istream& ins) {
       unsigned threshold = parseWord<unsigned>(ins);
       return new Binarize<ImageT>(threshold);
+   }
+};
+
+
+template<typename ImageT>
+class OptimalBinarize : public Action<ImageT> {
+public:
+   typedef OptimalBinarize<ImageT> ThisT;
+
+private:
+
+   void runPr(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      optimalBinarize(roi2view(src,roi),tgtview);
+   }
+
+   enum { NUM_PARAMETERS = 0 };
+
+public:
+   OptimalBinarize() {}
+   
+   virtual ~OptimalBinarize() {}
+
+   virtual ActionType type() const { return BINARIZE; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
+      runPr(src,tgt,roi);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      runPr(src,tgt,roi);
+   }
+
+   static OptimalBinarize* make(std::istream& ins) {
+      return new OptimalBinarize<ImageT>();
+   }
+};
+
+
+template<typename ImageT>
+class OtsuBinarize : public Action<ImageT> {
+public:
+   typedef OtsuBinarize<ImageT> ThisT;
+
+private:
+
+   void runPr(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      otsuBinarize(roi2view(src,roi),tgtview);
+   }
+
+   enum { NUM_PARAMETERS = 0 };
+
+public:
+   OtsuBinarize() {}
+   
+   virtual ~OtsuBinarize() {}
+
+   virtual ActionType type() const { return BINARIZE; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
+      runPr(src,tgt,roi);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      runPr(src,tgt,roi);
+   }
+
+   static OtsuBinarize* make(std::istream& ins) {
+      return new OtsuBinarize<ImageT>();
    }
 };
 

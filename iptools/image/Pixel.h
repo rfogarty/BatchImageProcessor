@@ -2,86 +2,9 @@
 
 #include "cppTools/TemplateMetaprogramming.h"
 #include "cppTools/Platform.h"
+#include "Channel.h"
 #include "PixelConversion.h"
-#include <limits>
 #include <ostream>
-
-// The following types may be used to scale up the primitive Channel type
-// so that an accumulated value can be calculated. Also, this is used to
-// print values to avoid printing char types, e.g.
-// TODO: since this variable type has more responsibility than choosing an
-// accumulator type, this name should be changed.
-template<typename PixelT,typename ChannelT = typename PixelT::value_type>
-struct AccumulatorVariableSelect { typedef ChannelT type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint8_t>  { typedef uint32_t type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint16_t> { typedef uint32_t type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,uint32_t> { typedef uint64_t type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int8_t>   { typedef int32_t  type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int16_t>  { typedef int32_t  type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,int32_t>  { typedef int64_t  type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,float>    { typedef double   type; };
-template<typename PixelT> struct AccumulatorVariableSelect<PixelT,double>   { typedef double   type; };
-
-
-template<typename ChannelT>
-struct ChannelTraits {
-   typedef ChannelT value_type;
-
-#if __cplusplus >= 201103L
-   static constexpr
-#else
-   static
-#endif
-   value_type min() { return 0; }
-
-#if __cplusplus >= 201103L
-   static constexpr
-#else
-   static
-#endif
-   value_type max() { return std::numeric_limits<value_type>::max(); }
-};
-
-template<>
-struct ChannelTraits<float> {
-   typedef float value_type;
-
-#if __cplusplus >= 201103L
-   static constexpr
-#else
-   static
-#endif
-   value_type min() { return 0.0f; }
-
-#if __cplusplus >= 201103L
-   static constexpr
-#else
-   static
-#endif
-   value_type max() { return 1.0f; }
-};
-
-template<>
-struct ChannelTraits<double> {
-   typedef double value_type;
-
-#if __cplusplus >= 201103L
-   static constexpr
-#else
-   static
-#endif
-   value_type min() { return 0.0; }
-
-#if __cplusplus >= 201103L
-   static constexpr
-#else
-   static
-#endif
-   value_type max() { return 1.0; }
-};
-
-
-
 
 template<typename ChannelT,typename ChannelTraitsT = ChannelTraits<ChannelT> >
 struct RGBAPixel {
@@ -112,7 +35,11 @@ struct RGBAPixel {
    };
 
    enum {
-      MAX_CHANNELS = 4
+      RED_CHANNEL    = 0,
+      GREEN_CHANNEL, // 1
+      BLUE_CHANNEL,  // 2
+      ALPHA_CHANNEL, // 3
+      MAX_CHANNELS   // 4
    };
 
    RGBAPixel() :
@@ -192,7 +119,11 @@ struct HSIPixel {
    };
 
    enum {
-      MAX_CHANNELS = 4
+      HUE_CHANNEL         = 0,
+      SATURATION_CHANNEL, // 1
+      INTENSITY_CHANNEL,  // 2
+      ALPHA_CHANNEL,      // 3
+      MAX_CHANNELS        // 4
    };
 
    HSIPixel() :
@@ -286,7 +217,9 @@ struct GrayAlphaPixel {
    };
 
    enum {
-      MAX_CHANNELS = 2
+      GRAY_CHANNEL    = 0,
+      ALPHA_CHANNEL,  // 1
+      MAX_CHANNELS    // 2
    };
 
    GrayAlphaPixel() :
@@ -378,7 +311,8 @@ struct MonochromePixel {
    };
 
    enum {
-      MAX_CHANNELS = 1
+      MONO_CHANNEL = 0,
+      MAX_CHANNELS // 1
    };
 
    MonochromePixel() :
@@ -392,7 +326,19 @@ struct MonochromePixel {
    bool operator!=(const MonochromePixel& that) {
       return !(*this == that);
    }
+
+   // implicit conversion from RGBAPixel
+   template<unsigned channel,template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
+   explicit MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& rgba);
 };
+
+
+template<typename ChannelT,typename ChannelTraitsT>
+template<unsigned channel,template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
+MonochromePixel<ChannelT,ChannelTraitsT>::MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& pixel) :
+   namedColor() {
+   channel2mono(pixel,*this,channel);
+}
 
 
 template <class T> struct is_monochrome                      : public std::false_type{};
@@ -445,7 +391,9 @@ struct ParametricGrayAlphaPixel {
    unsigned col;
 
    enum {
-      MAX_CHANNELS = 2
+      GRAY_CHANNEL   = 0,
+      ALPHA_CHANNEL, // 1
+      MAX_CHANNELS   // 2
    };
 
    ParametricGrayAlphaPixel() :

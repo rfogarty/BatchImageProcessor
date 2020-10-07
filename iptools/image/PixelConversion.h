@@ -2,12 +2,15 @@
 
 #include "cppTools/TemplateMetaprogramming.h"
 #include "cppTools/NumericConstants.h"
+#include "Channel.h"
 #include <cmath>
 #include <iostream>
+#include <ostream>
 
 template<typename ChannelT,typename ChannelTTraits> struct RGBAPixel;
 template<typename ChannelT,typename ChannelTTraits> struct HSIPixel;
 template<typename ChannelT,typename ChannelTTraits> struct GrayAlphaPixel;
+template<typename ChannelT,typename ChannelTTraits> struct MonochromePixel;
 
 template<typename ChannelT1,typename ChannelT1Traits,
          typename ChannelT2,typename ChannelT2Traits>
@@ -66,6 +69,8 @@ inline void assignRGB(RGBAPixel<ChannelT,ChannelTTraits>& rgba,
    // underlying models have NOT taken this into account. As a result, we need to scale
    // by a small amount under the ChannelT range (max) - thus explains the odd addition
    // of a number close to 1 below.
+   // TODO TODO: this looks really broken, especially when Channel is not integral type
+   //  believe this works for now but is a bug ready to happen.
    rgba.namedColor.red   = static_cast<ChannelT>(r * (ChannelTTraits::max()+0.999));
    rgba.namedColor.green = static_cast<ChannelT>(g * (ChannelTTraits::max()+0.999));
    rgba.namedColor.blue  = static_cast<ChannelT>(b * (ChannelTTraits::max()+0.999));
@@ -101,9 +106,11 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
    double y = i * (1.0 +  s * invHue);
    
    // Due to numeric imprecision, in some cases, factor y
-   // can exceed 1.0. If we do no compensate for that the color
+   // can exceed 1.0. If we do not compensate for that the color
    // space can wrap around causing extreme artifacts during HSI
-   // to RGB conversion. Kludge compensation
+   // to RGB conversion. Kludge compensation is to recompute a
+   // saturation that satisfies a bounded y, and then also recompute
+   // x given the new saturation.
    if(y > 1.0) {
       // Solve for s that would make y = 1.0
       // so that variables x and z will also be
@@ -143,6 +150,17 @@ void rgba2gray(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
       (double)rgba.namedColor.blue) / (3.0 * ChannelT1Traits::max());
    ChannelT2 rescaled = static_cast<ChannelT2>(grayNorm * ChannelT2Traits::max());
    gray.namedColor.gray = rescaled;
+}
+
+
+template<template<typename,typename> class PixelT,
+         typename ChannelT1,typename ChannelT1Traits,
+         typename ChannelT2,typename ChannelT2Traits>
+void channel2mono(const PixelT<ChannelT1,ChannelT1Traits>& pixel,
+                  MonochromePixel<ChannelT2,ChannelT2Traits>& mono,unsigned channel) {
+
+   double chanval =(double)pixel.indexedColor[channel] / ChannelT1Traits::max() * ChannelT2Traits::max();
+   mono.namedColor.mono = static_cast<ChannelT2>(chanval);
 }
 
 

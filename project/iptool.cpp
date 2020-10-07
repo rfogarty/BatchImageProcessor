@@ -68,7 +68,7 @@ void saveImage(const ImageT& image, const std::string& outputfile,const std::str
          << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
       throw std::invalid_argument(ss.str());
    }
-   writePGMFile(outputfile,image);
+   writePGMFile<ImageT::pixel_type::GRAY_CHANNEL>(outputfile,image);
 }
 
 template<typename ImageT>
@@ -159,6 +159,8 @@ void parseAndRunOperation(const std::string& line) {
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModify<ImageT>::make(ss));
          else if(operation == "scale")         process(inputfile,outputfile,operation,line,ss,Scale<ImageT>::make(ss));
          else if(operation == "binarize")      process(inputfile,outputfile,operation,line,ss,Binarize<ImageT>::make(ss));
+         else if(operation == "optBinarize")   process(inputfile,outputfile,operation,line,ss,OptimalBinarize<ImageT>::make(ss));
+         else if(operation == "otsuBinarize")  process(inputfile,outputfile,operation,line,ss,OtsuBinarize<ImageT>::make(ss));
          else if(operation == "binarizeDT")    process(inputfile,outputfile,operation,line,ss,BinarizeDT<ImageT>::make(ss));
          else if(operation == "uniformSmooth") process(inputfile,outputfile,operation,line,ss,UniformSmooth<ImageT>::make(ss));
          else {
