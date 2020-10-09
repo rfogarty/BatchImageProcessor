@@ -5,5 +5,5 @@
 *.ppm
 *.png
 
-iptool
+project/bin/batchIP
 testImage

@@ -159,7 +159,7 @@ void parseAndRunOperation(const std::string& line) {
       typedef types::GrayAlphaPixel<uint8_t> PixelT;
       typedef types::Image<PixelT> ImageT;
       try {
-         if(operation == "add")                process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
+         if     (operation == "add")           process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
          else if(operation == "hist")          process(inputfile,outputfile,operation,line,ss,Histogram<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModify<ImageT>::make(ss));
          else if(operation == "scale")         process(inputfile,outputfile,operation,line,ss,Scale<ImageT>::make(ss));
@@ -187,13 +187,13 @@ void parseAndRunOperation(const std::string& line) {
       typedef types::Image<PixelT> ImageT;
 
       try {
-         if(operation == "add")                process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
+         if     (operation == "add")           process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
+         else if(operation == "binarizeColor") process(inputfile,outputfile,operation,line,ss,BinarizeColor<ImageT>::make(ss));
          else if(operation == "histChan")      process(inputfile,outputfile,operation,line,ss,HistogramChannel<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModifyRGB<ImageT>::make(ss));
-         else if(operation == "histModHSI")    process(inputfile,outputfile,operation,line,ss,HistogramModifyHSI<ImageT>::make(ss));
+         else if(operation == "histModI")      process(inputfile,outputfile,operation,line,ss,HistogramModifyIntensity<ImageT>::make(ss));
          else if(operation == "histModAnyRGB") process(inputfile,outputfile,operation,line,ss,HistogramModifyAnyRGB<ImageT>::make(ss));
          else if(operation == "histModAnyHSI") process(inputfile,outputfile,operation,line,ss,HistogramModifyAnyHSI<ImageT>::make(ss));
-         else if(operation == "binarizeColor") process(inputfile,outputfile,operation,line,ss,BinarizeColor<ImageT>::make(ss));
          else if(operation == "selectColor")   process(inputfile,outputfile,operation,line,ss,SelectColor<ImageT>::make(ss));
          else if(operation == "selectHSI")     process(inputfile,outputfile,operation,line,ss,SelectHSI<ImageT>::make(ss));
          else if(operation == "afixAnyHSI")    process(inputfile,outputfile,operation,line,ss,AfixAnyHSI<ImageT>::make(ss));

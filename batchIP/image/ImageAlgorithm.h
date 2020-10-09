@@ -323,7 +323,7 @@ void linearlyStretchChannel(HSIImage& hsiImage,Bounds minBounds,Bounds maxBounds
 
 
 template<typename SrcImageT,typename TgtImageT,typename Value>
-void histogramModifyHSI(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
+void histogramModifyIntensity(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    

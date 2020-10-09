@@ -136,7 +136,7 @@ public:                                                                         
 
 HISTACTION(HistogramModify,histogramModify)
 HISTACTION(HistogramModifyRGB,histogramModifyRGB)
-HISTACTION(HistogramModifyHSI,histogramModifyHSI)
+HISTACTION(HistogramModifyIntensity,histogramModifyIntensity)
 
 
 template<typename ImageT>

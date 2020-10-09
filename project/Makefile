@@ -17,10 +17,10 @@ CCC = g++
 #
 #CCFLAGS = -std=c++03 -g3 -ggdb -O0 -DFAIL_WITH_ASSERT -Wall -Wpedantic -Werror
 #CCFLAGS = -std=c++03 -g3 -ggdb -O0 -Wall -Wpedantic -Werror -fsanitize=address -fno-omit-frame-pointer 
-#CCFLAGS = -std=c++03 -g3 -ggdb -O0 -Wall -Wpedantic -Werror
+CCFLAGS = -std=c++03 -g3 -ggdb -O0 -Wall -Wpedantic -Werror
 #CCFLAGS = -std=c++03 -O2 -march=native -Wall -Wpedantic -Werror
 # For ultimate speed disable any sort of invariant checking
-CCFLAGS = -std=c++03 -O2 -march=native -DNDEBUG -Wall -Wpedantic -Werror
+#CCFLAGS = -std=c++03 -O2 -march=native -DNDEBUG -Wall -Wpedantic -Werror
 #CCFLAGS = -std=c++17 -O2 -march=native -DNDEBUG -Wall -Wpedantic -Werror
 
 all: $(EXEC) $(TEST_EXEC)
