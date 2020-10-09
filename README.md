@@ -120,7 +120,7 @@ identify multiple ROI sections and parameters.
 ### Color images (.ppm) 
 
 | Short Description     | Function Name | # Params |         Parameters          |              Long Description
-|-----------------------|---------------|----------------------------------------|----------------------------------------------------------------
+|-----------------------|---------------|----------|-----------------------------|----------------------------------------------------------------
 | Intensity             | add           |        1 | <amount     (int)>          | brighten or darken a color image.
 | Binarization          | binarizeColor |        4 | <threshold  (float)>        | binarize the pixels with threshold distance from coordinate RGB
 |                       |               |          | <red        (unsigned)>     | 
