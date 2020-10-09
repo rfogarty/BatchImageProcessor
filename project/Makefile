@@ -1,7 +1,7 @@
 
 BIN_DIR=bin/
 
-EXEC = iptool
+EXEC = batchIP
 TEST_EXEC = testImage
 
 # compiler
@@ -25,21 +25,21 @@ CCFLAGS = -std=c++03 -O2 -march=native -DNDEBUG -Wall -Wpedantic -Werror
 
 all: $(EXEC) $(TEST_EXEC)
 
-iptools:
-	(cd ../iptools; make)
+libbatchIPTools:
+	(cd ../batchIP; make)
 
 clean:
 	$(RM) $(BIN_DIR)$(EXEC)
 	$(RM) $(BIN_DIR)$(TEST_EXEC)
-	(cd ../iptools; make clean)
+	(cd ../batchIP; make clean)
 
-DO_EXEC = $(CCC) $(CCFLAGS) -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+DO_EXEC = $(CCC) $(CCFLAGS) -I../batchIP -o $(BIN_DIR)$@ $@.cpp -L ../lib -l batchIPTools
 
-DO_TEST = $(CCC) $(CCFLAGS) -I../iptools -o $(BIN_DIR)$@ $@.cpp -L ../lib -l iptools
+DO_TEST = $(CCC) $(CCFLAGS) -I../batchIP -o $(BIN_DIR)$@ $@.cpp -L ../lib -l batchIPTools
 
 #------ now compile
-$(EXEC):   		iptools
+$(EXEC):   		libbatchIPTools
 				$(DO_EXEC)
 
-$(TEST_EXEC):  iptools
+$(TEST_EXEC):  libbatchIPTools
 				$(DO_TEST)

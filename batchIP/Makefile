@@ -3,7 +3,7 @@ SRC =  utility/StringParse.cpp
 
 OBJ = $(SRC:.cpp=.o)
 
-OUT = ../lib/libiptools.a
+OUT = ../lib/libbatchIPTools.a
 
 # include directories
 INCLUDES = -I. -I/usr/local/include
