@@ -2,6 +2,9 @@
 
 #include "TemplateMetaprogramming.h"
 
+namespace stdesque {
+namespace numeric {
+
 CONST_VAL_FUNC double pi()           { return 3.141592653589793; }
 
 CONST_VAL_FUNC double twoPi()        { return 6.283185307179586; }
@@ -15,4 +18,7 @@ CONST_VAL_FUNC double fourThirdsPi() { return 4.1887902047863905; }
 CONST_VAL_FUNC double oneThirds() { return 0.3333333; }
 
 CONST_VAL_FUNC double twoThirds() { return 0.6666667; }
+
+} // namespace numeric
+} // stdesque
 

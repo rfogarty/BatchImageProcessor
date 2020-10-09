@@ -4,6 +4,8 @@
 #include <istream>
 #include <iostream>
 
+namespace batchIP {
+namespace types {
 
 ///////////////////////////////////////////////////////////////////////////////
 // RegionOfInterest - simple struct to identify regions of Images on which
@@ -42,4 +44,7 @@ RegionOfInterest view2roi(ImageViewT& view) {
   return RegionOfInterest(view.rows(),view.cols(),view.rowBegin(),view.colBegin()); 
 }
 
+
+} // namespace types
+} // namespace batchIP
 

@@ -11,6 +11,7 @@
 
 #else
 
+// The following trait classes are near-equivalents to C++11 std library
 namespace std {
 
    template<bool B, class T = void>
@@ -89,6 +90,9 @@ namespace std {
 
 #endif
 
-template<class T> struct is_uint8                    : public std::false_type {};
-template<> struct is_uint8<uint8_t>                  : public std::true_type {};
+namespace stdesque {
 
+   template<class T> struct is_uint8                    : public std::false_type {};
+   template<> struct is_uint8<uint8_t>                  : public std::true_type {};
+
+} // namespace stdesque

@@ -3,8 +3,11 @@
 #include "Pixel.h"
 #include "cppTools/TemplateMetaprogramming.h"
 
+namespace batchIP {
+namespace io {
+
 template<typename ImageT,
-         bool = is_uint8<typename ImageT::pixel_type::value_type>::value>
+         bool = stdesque::is_uint8<typename ImageT::pixel_type::value_type>::value>
 struct PixelWriter {
    typedef typename ImageT::pixel_type PixelT;
 private:
@@ -46,7 +49,7 @@ public:
       typename ImageT::const_iterator end = image.end();
    
       for(;pos != end;++pos) {
-         RGBAPixel<uint8_t> rgba(*pos);
+         types::RGBAPixel<uint8_t> rgba(*pos);
          ostr << rgba.namedColor.red;
          ostr << rgba.namedColor.green;
          ostr << rgba.namedColor.blue;
@@ -58,7 +61,7 @@ public:
    
       typename ImageT::const_iterator pos = image.begin();
       typename ImageT::const_iterator end = image.end();
-      typedef ChannelTraits<uint8_t> OutTraitsT;
+      typedef types::ChannelTraits<uint8_t> OutTraitsT;
    
       for(;pos != end;++pos) {
          uint8_t mono = ((double)pos->indexedColor[channel] - PixelT::traits::min())*(double)OutTraitsT::max()/PixelT::traits::max();
@@ -66,3 +69,8 @@ public:
       }
    }
 }; // PixelWriter
+
+
+} // namespace io
+} // namespace batchIP
+

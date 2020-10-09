@@ -2,6 +2,9 @@
 #include "StringParse.h"
 
 
+namespace batchIP {
+namespace utility {
+
 bool endsWith(const std::string& str, const std::string& suffix) {
    // Extra parans aren't needed but added for reader clarification
    return (str.size() >= suffix.size()) && 
@@ -43,11 +46,15 @@ bool readNext2Integers(std::istream& ins,unsigned& val1,unsigned& val2) {
    return readVal2;
 }
 
-
+//////////////////////////////////////////////////////////////////////////
+// ParseError Implementation
+//////////////////////////////////////////////////////////////////////////
 ParseError::ParseError(const std::string& msg) : mMessage(msg) {}
 
 ParseError::~ParseError() throw() {}
 
 const char* ParseError::what() const throw() { return mMessage.c_str(); }
 
+} // namespace utility
+} // namespace batchIP
 

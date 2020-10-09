@@ -6,7 +6,7 @@
 
 #include "image/NetpbmImage.h"
 #include "image/ImageOperation.h"
-#include "image/ImageAlgorithm.h"
+#include "image/ImageActions.h"
 #include "image/RegionOfInterest.h"
 #include "utility/StringParse.h"
 #include <fstream>
@@ -15,11 +15,15 @@
 #include <stdexcept>
 
 
+namespace batchIP {
+namespace {
+
 void printHelpAndExit(const char* execname) {
    std::cerr << "Usage: " << execname << " <operations_file>" << std::endl;
    exit(1);
 }
 
+
 template<typename ImageT>
 ImageT readImage(const std::string& inputfile,const std::string& line,
          // This ugly bit is an unnamed argument with a default which means it neither           
@@ -27,14 +31,14 @@ ImageT readImage(const std::string& inputfile,const std::string& line,
          // point? It still participates in SFINAE to help select that this is an appropriate    
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
-         typename std::enable_if<is_grayscale<typename ImageT::pixel_type>::value,int>::type* = 0) {
-   if(!endsWith(inputfile,".pgm")) {
+         typename std::enable_if<types::is_grayscale<typename ImageT::pixel_type>::value,int>::type* = 0) {
+   if(!utility::endsWith(inputfile,".pgm")) {
       std::stringstream ss;
       ss << "ERROR: on line: " << line << "\n"
          << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
       throw std::invalid_argument(ss.str());
    }
-   return readPGMFile<typename ImageT::pixel_type>(inputfile);
+   return io::readPGMFile<typename ImageT::pixel_type>(inputfile);
 }
 
 template<typename ImageT>
@@ -44,14 +48,14 @@ ImageT readImage(const std::string& inputfile,const std::string& line,
          // point? It still participates in SFINAE to help select that this is an appropriate    
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
-         typename std::enable_if<is_rgba<typename ImageT::pixel_type>::value,int>::type* = 0) {
-   if(!endsWith(inputfile,".ppm")) {
+         typename std::enable_if<types::is_rgba<typename ImageT::pixel_type>::value,int>::type* = 0) {
+   if(!utility::endsWith(inputfile,".ppm")) {
       std::stringstream ss;
       ss << "ERROR: on line: " << line << "\n"
          << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
       throw std::invalid_argument(ss.str());
    }
-   return readPPMFile<typename ImageT::pixel_type>(inputfile);
+   return io::readPPMFile<typename ImageT::pixel_type>(inputfile);
 }
 
 template<typename ImageT>
@@ -61,14 +65,14 @@ void saveImage(const ImageT& image, const std::string& outputfile,const std::str
          // point? It still participates in SFINAE to help select that this is an appropriate    
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
-         typename std::enable_if<is_grayscale<typename ImageT::pixel_type>::value,int>::type* = 0) {
-   if(!endsWith(outputfile,".pgm")) {
+         typename std::enable_if<types::is_grayscale<typename ImageT::pixel_type>::value,int>::type* = 0) {
+   if(!utility::endsWith(outputfile,".pgm")) {
       std::stringstream ss;
       ss << "ERROR: on line: " << line << "\n"
          << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
       throw std::invalid_argument(ss.str());
    }
-   writePGMFile<ImageT::pixel_type::GRAY_CHANNEL>(outputfile,image);
+   io::writePGMFile<ImageT::pixel_type::GRAY_CHANNEL>(outputfile,image);
 }
 
 template<typename ImageT>
@@ -78,14 +82,14 @@ void saveImage(const ImageT& image, const std::string& outputfile,const std::str
          // point? It still participates in SFINAE to help select that this is an appropriate    
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
-         typename std::enable_if<is_rgba<typename ImageT::pixel_type>::value,int>::type* = 0) {
-   if(!endsWith(outputfile,".ppm")) {
+         typename std::enable_if<types::is_rgba<typename ImageT::pixel_type>::value,int>::type* = 0) {
+   if(!utility::endsWith(outputfile,".ppm")) {
       std::stringstream ss;
       ss << "ERROR: on line: " << line << "\n"
          << "ERROR: outputfile is expected to be .ppm (color)" << std::endl;
       throw std::invalid_argument(ss.str());
    }
-   writePPMFile(outputfile,image);
+   io::writePPMFile(outputfile,image);
 }
 
 
@@ -99,7 +103,7 @@ void process(const std::string& inputfile,
 
    typedef typename ActionT::src_image_type ImageSrc;
    typedef typename ActionT::tgt_image_type ImageTgt;
-   typedef Operation<ActionT,ImageSrc,ImageTgt> OperationT;
+   typedef operation::Operation<ActionT,ImageSrc,ImageTgt> OperationT;
 
    OperationT op(action);
    parseROIsAndParameters(op,action->numParameters(),ins);
@@ -136,24 +140,24 @@ void parseAndRunOperation(const std::string& line) {
    std::string operation;
 
    try {
-      inputfile = parseWord<std::string>(ss);
-      if(startsWith(inputfile,"#")) return;
+      inputfile = utility::parseWord<std::string>(ss);
+      if(utility::startsWith(inputfile,"#")) return;
       std::cout << "Processing: " << (line.size() > 80 ? line.substr(0,80) + "..." : line) << std::endl;
-      outputfile = parseWord<std::string>(ss);
-      operation = parseWord<std::string>(ss);
+      outputfile = utility::parseWord<std::string>(ss);
+      operation = utility::parseWord<std::string>(ss);
    }
-   catch(const ParseError& pe) {
+   catch(const utility::ParseError& pe) {
       std::cerr << "ERROR: parsing line: " << line << "\n"
                 << "ERROR: " << pe.what() << std::endl;
       return;
    }
 
-   using namespace algorithm;
+   using namespace ::batchIP::operation;
    
-   if(endsWith(inputfile,".pgm")) {
+   if(utility::endsWith(inputfile,".pgm")) {
 
-      typedef GrayAlphaPixel<uint8_t> PixelT;
-      typedef Image<PixelT> ImageT;
+      typedef types::GrayAlphaPixel<uint8_t> PixelT;
+      typedef types::Image<PixelT> ImageT;
       try {
          if(operation == "add")                process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
          else if(operation == "hist")          process(inputfile,outputfile,operation,line,ss,Histogram<ImageT>::make(ss));
@@ -169,7 +173,7 @@ void parseAndRunOperation(const std::string& line) {
             return;
          }
       }
-      catch(const ParseError& pe) {
+      catch(const utility::ParseError& pe) {
          std::cerr << "ERROR: parsing operation on line: " << line << "\n"
                    << "ERROR: " << pe.what() << std::endl; 
       }
@@ -177,16 +181,17 @@ void parseAndRunOperation(const std::string& line) {
          std::cerr << "ERROR: processing operation: " << e.what() << std::endl;
       }
    }
-   else if(endsWith(inputfile,".ppm")) {
+   else if(utility::endsWith(inputfile,".ppm")) {
 
-      typedef RGBAPixel<uint8_t> PixelT;
-      typedef Image<PixelT> ImageT;
+      typedef types::RGBAPixel<uint8_t> PixelT;
+      typedef types::Image<PixelT> ImageT;
 
       try {
          if(operation == "add")                process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
          else if(operation == "histChan")      process(inputfile,outputfile,operation,line,ss,HistogramChannel<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModifyRGB<ImageT>::make(ss));
          else if(operation == "histModHSI")    process(inputfile,outputfile,operation,line,ss,HistogramModifyHSI<ImageT>::make(ss));
+         else if(operation == "histModAnyRGB") process(inputfile,outputfile,operation,line,ss,HistogramModifyAnyRGB<ImageT>::make(ss));
          else if(operation == "histModAnyHSI") process(inputfile,outputfile,operation,line,ss,HistogramModifyAnyHSI<ImageT>::make(ss));
          else if(operation == "binarizeColor") process(inputfile,outputfile,operation,line,ss,BinarizeColor<ImageT>::make(ss));
          else if(operation == "selectColor")   process(inputfile,outputfile,operation,line,ss,SelectColor<ImageT>::make(ss));
@@ -197,7 +202,7 @@ void parseAndRunOperation(const std::string& line) {
             return;
          }
       }
-      catch(const ParseError& pe) {
+      catch(const utility::ParseError& pe) {
          std::cerr << "ERROR: parsing operation on line: " << line << "\n"
                    << "ERROR: " << pe.what() << std::endl; 
       }
@@ -211,8 +216,12 @@ void parseAndRunOperation(const std::string& line) {
    }
 }
 
+} // unnamed namespace
+} // namespace batchIP
 
 int main (int argc, char** argv) {
+
+   using namespace batchIP;
 
    if(argc != 2) printHelpAndExit(argv[0]);
 

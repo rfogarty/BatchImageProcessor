@@ -5,6 +5,9 @@
 #include <iterator>
 #include <vector>
 
+namespace batchIP {
+namespace types {
+
 ///////////////////////////////////////////////////////////////////////////////
 // ImageBounds - abstract base class that ImageStore and all ImageView
 //                derive. Its data is used when taking "sub-views".
@@ -125,8 +128,8 @@ public:
    unsigned padding() const { return mPadding; }
 
    const pixel_type& pixel(unsigned row,unsigned col) const {
-      reportIfNotLessThan("row",row,mAllocatedRows);
-      reportIfNotLessThan("col",col,mAllocatedCols);
+      utility::reportIfNotLessThan("row",row,mAllocatedRows);
+      utility::reportIfNotLessThan("col",col,mAllocatedCols);
       unsigned index = mAllocatedCols * row + col;
       return pixels[index];
    }
@@ -187,8 +190,8 @@ protected:
       mStore(store),
       mBounds(*bounds) {
       // Ensure that this ImageWindow is valid, and throw exception if not
-      reportIfNotLessThan("rowPos+rows",rowPos + rows,mBounds.rows()+1);
-      reportIfNotLessThan("colPos+cols",colPos + cols,mBounds.cols()+1);
+      utility::reportIfNotLessThan("rowPos+rows",rowPos + rows,mBounds.rows()+1);
+      utility::reportIfNotLessThan("colPos+cols",colPos + cols,mBounds.cols()+1);
    }
 
    // Copy-constructible only via derivatives
@@ -232,8 +235,8 @@ private:
 public:
    const PixelT& pixel(unsigned row, unsigned col) const {
       // Verify that the requested pixel is within the bounds of the ImageWindow
-      reportIfNotLessThan("mRowBegin+row",row,mRows);
-      reportIfNotLessThan("mColBegin+col",col,mCols);
+      utility::reportIfNotLessThan("mRowBegin+row",row,mRows);
+      utility::reportIfNotLessThan("mColBegin+col",col,mCols);
       return mStore->pixel(row+mRowBegin,col+mColBegin);
    }
 
@@ -246,8 +249,8 @@ public:
    // it is not safe to perform resize and move as separate functions.
    // Therefore, this function should be called in such a case.
    void resizeAndMove(unsigned rows,unsigned cols,unsigned rowPos,unsigned colPos) {
-      reportIfNotLessThan("rowBegin+mRows",rowPos + rows,mBounds.rows()+1);
-      reportIfNotLessThan("colBegin+mCols",colPos + cols,mBounds.cols()+1);
+      utility::reportIfNotLessThan("rowBegin+mRows",rowPos + rows,mBounds.rows()+1);
+      utility::reportIfNotLessThan("colBegin+mCols",colPos + cols,mBounds.cols()+1);
       mRows = rows;
       mCols = cols;
       mSize = rows*cols;
@@ -256,8 +259,8 @@ public:
    }
 
    void resize(unsigned rows,unsigned cols) {
-      reportIfNotLessThan("rows",mRowBegin + rows,mBounds.rows()+1);
-      reportIfNotLessThan("cols",mColBegin + cols,mBounds.cols()+1);
+      utility::reportIfNotLessThan("rows",mRowBegin + rows,mBounds.rows()+1);
+      utility::reportIfNotLessThan("cols",mColBegin + cols,mBounds.cols()+1);
       mRows = rows;
       mCols = cols;
       mSize = rows*cols;
@@ -274,8 +277,8 @@ public:
    virtual unsigned colBegin() const { return mColBegin; }
 
    void move(unsigned rowPos,unsigned colPos) {
-      reportIfNotLessThan("rowBegin+mRows",rowPos + mRows,mBounds.rows()+1);
-      reportIfNotLessThan("colBegin+mCols",colPos + mCols,mBounds.cols()+1);
+      utility::reportIfNotLessThan("rowBegin+mRows",rowPos + mRows,mBounds.rows()+1);
+      utility::reportIfNotLessThan("colBegin+mCols",colPos + mCols,mBounds.cols()+1);
       mRowBegin = rowPos + mBounds.rowBegin();
       mColBegin = colPos + mBounds.colBegin();
    }
@@ -348,8 +351,8 @@ public:
    }
 
    const PixelT& operator*() const {
-      reportIfNotLessThan("rowPos",rowPos,mImageWindow->rows());
-      reportIfNotLessThan("colPos",colPos,mImageWindow->cols());
+      utility::reportIfNotLessThan("rowPos",rowPos,mImageWindow->rows());
+      utility::reportIfNotLessThan("colPos",colPos,mImageWindow->cols());
       return mImageWindow->pixel(rowPos,colPos);
    }
 
@@ -524,14 +527,14 @@ public:
       mStore(store),
       mBounds(*bounds) {
       // Ensure rows and columns is at least 1 or greater!
-      reportIfNotLessThan("rows",0u,rows);
-      reportIfNotLessThan("cols",0u,cols);
+      utility::reportIfNotLessThan("rows",0u,rows);
+      utility::reportIfNotLessThan("cols",0u,cols);
    }
 
    const PixelT& pixel(unsigned row, unsigned col) const {
       // Verify that the requested pixel is within the bounds of the ImageWindow
-      reportIfNotLessThan("row",row,rows());
-      reportIfNotLessThan("col",col,cols());
+      utility::reportIfNotLessThan("row",row,rows());
+      utility::reportIfNotLessThan("col",col,cols());
       unsigned rowOffset = mRowPos - mElasticHalfWindowRows + row;
       unsigned colOffset = mColPos - mElasticHalfWindowCols + col;
       return mStore->pixel(rowOffset+mBounds.rowBegin(),colOffset+mBounds.colBegin());
@@ -544,13 +547,13 @@ public:
 
    template<typename DepartedListener,typename EnteredListener>
    void moveRight(DepartedListener& departedListener,EnteredListener& enteredListener) {
-      reportIfNotLessThan("cols",mColPos+1,mBounds.cols());
+      utility::reportIfNotLessThan("cols",mColPos+1,mBounds.cols());
       shiftCol(departedListener,enteredListener);
    }
 
    template<typename DepartedListener,typename EnteredListener>
    void moveDown(DepartedListener& departedListener,EnteredListener& enteredListener) {
-      reportIfNotLessThan("rows",mRowPos+1,mBounds.rows());
+      utility::reportIfNotLessThan("rows",mRowPos+1,mBounds.rows());
       shiftRow(departedListener,enteredListener);
    }
 
@@ -629,8 +632,8 @@ public:
 
    ImageView& operator=(const ImageView& that) {
       if(this != &that) {
-         reportIfNotEqual("mRows",this->mRows,that.mRows);
-         reportIfNotEqual("mCols",this->mCols,that.mCols);
+         utility::reportIfNotEqual("mRows",this->mRows,that.mRows);
+         utility::reportIfNotEqual("mCols",this->mCols,that.mCols);
          if(this->mStore == that.mStore) {
             // TODO: this should be optimized, however,
             // if these are the same store, we need to check
@@ -654,8 +657,8 @@ public:
       const unsigned char* thisStore = reinterpret_cast<const unsigned char*>(this->mStore);
       const unsigned char* thatStore = reinterpret_cast<const unsigned char*>(that.mStore);
       //const unsigned char* thatStore = reinterpret_cast<const unsigned char*>(that.store());
-      reportIfNotEqual("mRows",this->mRows,that.rows());
-      reportIfNotEqual("mCols",this->mCols,that.cols());
+      utility::reportIfNotEqual("mRows",this->mRows,that.rows());
+      utility::reportIfNotEqual("mCols",this->mCols,that.cols());
       if(thisStore != thatStore) {
          iterator tpos = begin();
          iterator tend = end();
@@ -901,5 +904,6 @@ public:
    const_iterator end() const { return mDefaultView.end(); }
 };
 
-
+} // namespace types
+} // namespace batchIP
 

@@ -4,6 +4,9 @@
 #include "cppTools/Platform.h"
 #include <limits>
 
+namespace batchIP {
+namespace types {
+
 // The following types may be used to scale up the primitive Channel type
 // so that an accumulated value can be calculated. Also, this is used to
 // print values to avoid printing char types, e.g.
@@ -92,4 +95,6 @@ struct ChannelTraits<double> {
 };
 
 
+} // namespace types
+} // namespace batchIP
 

@@ -12,6 +12,11 @@
 #include <iostream>
 #include <sstream>
 
+using namespace batchIP;
+using namespace batchIP::io;
+using namespace batchIP::types;
+using namespace batchIP::utility;
+
 class ExpectedError : public std::exception {
 private:
    std::string mMessage;

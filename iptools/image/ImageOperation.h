@@ -2,7 +2,11 @@
 
 #include "RegionOfInterest.h"
 #include "ImageAction.h"
-#include <utility>
+#include "utility/StringParse.h"
+#include <utility> // for std::pair
+
+namespace batchIP {
+namespace operation {
 
 ///////////////////////////////////////////////////////////////////////////////
 // Operation - a simple wrapper class that manages an Action type
@@ -14,11 +18,10 @@ template<typename ActionT,
          typename ImageTgt = typename ActionT::tgt_image_type>
 class Operation {
 private:
-   const ActionT* mAction;
-   
-   typedef std::pair<RegionOfInterest,ParameterPack> ParameterizedRegionT;
-
+   typedef std::pair<types::RegionOfInterest,types::ParameterPack> ParameterizedRegionT;
    typedef std::vector<ParameterizedRegionT> ParameterizedRegionsT;
+
+   const ActionT* mAction;
    ParameterizedRegionsT mRegions;
 
    void operateOnRegions(const ImageSrc& src,ImageTgt& tgt) {
@@ -48,7 +51,7 @@ public:
       mAction = 0;
    }
 
-   void addRegionAndParameterPack(const RegionOfInterest& roi,const ParameterPack& parameters) {
+   void addRegionAndParameterPack(const types::RegionOfInterest& roi,const types::ParameterPack& parameters) {
       mRegions.push_back(std::make_pair(roi,parameters));
    }
 
@@ -73,16 +76,16 @@ void parseROIsAndParameters(OperationT& op,unsigned numParameters,std::istream& 
 
    while(!ins.eof()) {
       try {
-         std::string regionID = parseWord<std::string>(ins);
+         std::string regionID = utility::parseWord<std::string>(ins);
          if(regionID.size() == 0) break;
          if(regionID == "ROI:") {
-            unsigned row = parseWord<unsigned>(ins);
-            unsigned col = parseWord<unsigned>(ins);
-            unsigned rows = parseWord<unsigned>(ins);
-            unsigned cols = parseWord<unsigned>(ins);
-            ParameterPack params;
-            for(unsigned i = 0; i < numParameters;++i) params.push_back(parseWord<std::string>(ins));
-            op.addRegionAndParameterPack(RegionOfInterest(rows,cols,row,col),params);
+            unsigned row = utility::parseWord<unsigned>(ins);
+            unsigned col = utility::parseWord<unsigned>(ins);
+            unsigned rows = utility::parseWord<unsigned>(ins);
+            unsigned cols = utility::parseWord<unsigned>(ins);
+            types::ParameterPack params;
+            for(unsigned i = 0; i < numParameters;++i) params.push_back(utility::parseWord<std::string>(ins));
+            op.addRegionAndParameterPack(types::RegionOfInterest(rows,cols,row,col),params);
          }
          else {
             // Log error and break
@@ -91,11 +94,14 @@ void parseROIsAndParameters(OperationT& op,unsigned numParameters,std::istream& 
             break;
          }
       }
-      catch(const ParseError& pe) {
+      catch(const utility::ParseError& pe) {
          std::cerr << "WARNING: trouble decoding Region of Interest.\n"
                    << "WARNING: processing on image may be incomplete." << std::endl;
       }
    }
 }
 
+
+} // namespace operation
+} // namespace batchIP
 

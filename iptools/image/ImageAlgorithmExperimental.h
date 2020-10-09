@@ -1,3 +1,7 @@
+#pragma once
+
+namespace batchIP {
+namespace algorithm {
 
 template<typename PixelT,typename AccumulatorVariableTT>
 struct PixelSquareSubtractor {
@@ -113,10 +117,10 @@ void histogramUnify(const SrcImageT& src, TgtImageT& tgt,unsigned windowSize,
    typedef ParametricGrayAlphaPixel<AccumulatorVariableT> IntermediatePixelT;
    typedef Image<IntermediatePixelT> IntermediateImageT;
 
-   reportIfNotLessThan("windowSize",2u,windowSize);
-   reportIfNotEqual("windowSize (which should be odd)",windowSize-1,((windowSize >> 1u) << 1u));
-   reportIfNotEqual("src.rows() != tgt.rows()",src.rows(),tgt.rows());
-   reportIfNotEqual("src.cols() != tgt.cols()",src.cols(),tgt.cols());
+   utility::reportIfNotLessThan("windowSize",2u,windowSize);
+   utility::reportIfNotEqual("windowSize (which should be odd)",windowSize-1,((windowSize >> 1u) << 1u));
+   utility::reportIfNotEqual("src.rows() != tgt.rows()",src.rows(),tgt.rows());
+   utility::reportIfNotEqual("src.cols() != tgt.cols()",src.cols(),tgt.cols());
 
    unsigned rows = src.rows();
    unsigned cols = src.cols();
@@ -168,4 +172,7 @@ void histogramUnify(const SrcImageT& src, TgtImageT& tgt,unsigned windowSize,
 //   }
 }
 
+
+} // namespace algorithm
+} // namespace batchIP
 

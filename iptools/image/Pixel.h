@@ -6,6 +6,9 @@
 #include "PixelConversion.h"
 #include <ostream>
 
+namespace batchIP {
+namespace types {
+
 template<typename ChannelT,typename ChannelTraitsT = ChannelTraits<ChannelT> >
 struct RGBAPixel {
    
@@ -410,4 +413,7 @@ struct ParametricGrayAlphaPixel {
    }
 };
 
+
+} // namespace types
+} // namespace batchIP
 

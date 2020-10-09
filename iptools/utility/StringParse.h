@@ -5,6 +5,9 @@
 #include <sstream>
 #include <string>
 
+namespace batchIP {
+namespace utility {
+
 // endsWith - checks if a string ends with the suffix
 bool endsWith(const std::string& str, const std::string& suffix);
 
@@ -56,4 +59,7 @@ ReturnT parseWord(const std::string& str) {
    return retval;
 }
 
+
+} // namespace utility
+} // namespace batchIP
 

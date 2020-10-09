@@ -6,6 +6,9 @@
 #include <sstream>
 #include <stdexcept>
 
+namespace batchIP {
+namespace utility {
+
 template<typename T>
 void reportIfNotLessThan(const char* field,T val,T maxVal) {
 #ifdef FAIL_WITH_ASSERT
@@ -52,3 +55,7 @@ inline void fail(const char* reason) {
    throw std::out_of_range(reason);
 #endif
 }
+
+} // namespace utility
+} // namespace batchIP
+

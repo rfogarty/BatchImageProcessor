@@ -3,8 +3,11 @@
 #include "Pixel.h"
 #include "cppTools/TemplateMetaprogramming.h"
 
+namespace batchIP {
+namespace io {
+
 template<typename ImageT,
-         bool = is_uint8<typename ImageT::pixel_type::value_type>::value>
+         bool = stdesque::is_uint8<typename ImageT::pixel_type::value_type>::value>
 struct PixelReader {
    typedef typename ImageT::pixel_type PixelT;
 private:
@@ -56,7 +59,7 @@ public:
       typename BufferT::const_iterator spos = buffer.begin();
    
       for(;tpos != tend;++tpos) {
-         RGBAPixel<uint8_t> pixel;
+         types::RGBAPixel<uint8_t> pixel;
          pixel.namedColor.red = *spos; ++spos;
          pixel.namedColor.green = *spos; ++spos;
          pixel.namedColor.blue = *spos; ++spos;
@@ -72,11 +75,14 @@ public:
       typename BufferT::const_iterator spos = buffer.begin();
    
       for(;tpos != tend;++tpos) {
-         GrayAlphaPixel<uint8_t> pixel;
+         types::GrayAlphaPixel<uint8_t> pixel;
          pixel.namedColor.gray = *spos; ++spos;
          *tpos = pixel;
       }
    }
 }; // struct PixelReader
 
+
+} // namespace io
+} // namespace batchIP
 

@@ -1,8 +1,18 @@
 #pragma once
 
-#include "RegionOfInterest.h"
 #include <vector>
 #include <string>
+
+namespace batchIP {
+
+namespace types {
+   struct RegionOfInterest;
+
+   // Used to push ROI function parameters to run callbacks.
+   typedef std::vector<std::string> ParameterPack;
+}
+
+namespace operation {
 
 ///////////////////////////////////////////////////////////////////////////////
 // ActionType is a simple enumeration that can operate as a label for
@@ -20,9 +30,6 @@ enum ActionType {
    SELECT_COLOR,
    SELECT_HSI
 };
-
-// Used to push ROI function parameters to run callbacks.
-typedef std::vector<std::string> ParameterPack;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Action - an abstract process or algorithm to run on some Image type.
@@ -42,9 +49,12 @@ public:
 
    virtual unsigned numParameters() const = 0;
 
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi) const = 0;
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi) const = 0;
    
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const = 0;
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,
+                    const types::ParameterPack& parameters) const = 0;
 };
 
+} // namespace operation
+} // namespace batchIP
 

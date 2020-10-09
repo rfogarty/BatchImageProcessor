@@ -7,6 +7,9 @@
 #include <iostream>
 #include <ostream>
 
+namespace batchIP {
+namespace types {
+
 template<typename ChannelT,typename ChannelTTraits> struct RGBAPixel;
 template<typename ChannelT,typename ChannelTTraits> struct HSIPixel;
 template<typename ChannelT,typename ChannelTTraits> struct GrayAlphaPixel;
@@ -45,10 +48,10 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    if(numerator > denominator) numerator = denominator;
 
    double h = denominator != 0 ? std::acos(numerator/denominator) : 0.0;
-   if(b > g) h = twoPi() - h;
+   if(b > g) h = stdesque::numeric::twoPi() - h;
 
    // Now normalize h to be between [0 and 1.0)
-   h /= twoPi();
+   h /= stdesque::numeric::twoPi();
 
    // Because rgb are normalized by their sum
    double s = 1.0 - 3.0*std::min(r,std::min(g,b));
@@ -60,7 +63,7 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    // s before saving it in HSIPixel. This compensation on saturation ensures
    // its space is valid from (0,1) throughout the intensity and hue space.
    // This compensation needs to be undone right before conversion back to RGB space.
-   if((twoThirds() < i) && (i < 1.0)) hsi.namedColor.saturation = static_cast<ChannelT2>(std::min(s /(2.0/i - 2.0),1.0));
+   if((stdesque::numeric::twoThirds() < i) && (i < 1.0)) hsi.namedColor.saturation = static_cast<ChannelT2>(std::min(s /(2.0/i - 2.0),1.0));
    else hsi.namedColor.saturation = static_cast<ChannelT2>(s);
    //std::cout << hsi << std::endl;
 }
@@ -99,19 +102,19 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
 
    double h = hsi.namedColor.hue;
    // Now normalize h from [0 and 1.0) back to [0, 2pi)
-   h *= twoPi();
+   h *= stdesque::numeric::twoPi();
    double i = hsi.namedColor.intensity;
 
    // Before implementing the standard conversion, we need to convert normalized saturation
    // to "unnormalized".
    double s = hsi.namedColor.saturation;
-   if(twoThirds() < i) s *= (2.0/i - 2.0);
+   if(stdesque::numeric::twoThirds() < i) s *= (2.0/i - 2.0);
    
-   double h120 = (h < twoThirdsPi()) ? h : ((h < fourThirdsPi()) ? (h - twoThirdsPi()) : (h - fourThirdsPi()) );
+   double h120 = (h < stdesque::numeric::twoThirdsPi()) ? h : ((h < stdesque::numeric::fourThirdsPi()) ? (h - stdesque::numeric::twoThirdsPi()) : (h - stdesque::numeric::fourThirdsPi()) );
 
    double x = i * (1.0 - s);
    double invHue = std::cos(h120) /
-                   std::cos(oneThirdsPi() - h120);
+                   std::cos(stdesque::numeric::oneThirdsPi() - h120);
    double y = i * (1.0 +  s * invHue);
    
    //std::cout << "y=" << y << " x=" << x << " ";
@@ -134,8 +137,8 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
    double z = std::min(1.0,std::max(3.0*i - (x + y),0.0));
    //std::cout << "z=" << z << " ";
 
-   if(h < twoThirdsPi()) assignRGB(rgba,y,z,x);
-   else if(h < fourThirdsPi()) assignRGB(rgba,x,y,z);
+   if(h < stdesque::numeric::twoThirdsPi()) assignRGB(rgba,y,z,x);
+   else if(h < stdesque::numeric::fourThirdsPi()) assignRGB(rgba,x,y,z);
    else assignRGB(rgba,z,x,y);
    //std::cout << rgba << std::endl;
 }
@@ -178,4 +181,7 @@ void channel2mono(const SrcPixelT<ChannelT1,ChannelT1Traits>& pixel,
    mono.indexedColor[0] = static_cast<ChannelT2>(chanval);
 }
 
+
+} // namespace types
+} // namespace batchIP
 

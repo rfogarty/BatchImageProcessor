@@ -8,6 +8,9 @@
 #include <fstream>
 #include <string>
 
+namespace batchIP {
+namespace io {
+
 void readPNMHeader(std::istream& ifs,const std::string& filename,
                    unsigned& rows, unsigned& cols,
                    const char* pnmTypeID,const char* extType) {
@@ -21,7 +24,7 @@ void readPNMHeader(std::istream& ifs,const std::string& filename,
    }
 
    /* read the next two ints in a file to grab the rows and cols*/
-   if(!readNext2Integers(ifs,cols,rows)) {
+   if(!utility::readNext2Integers(ifs,cols,rows)) {
       std::stringstream ss;
       ss << "Image file \"" << filename << "\" size could not be deduced perhaps bad PNM format...";
       throw std::invalid_argument(ss.str().c_str());
@@ -33,9 +36,9 @@ void readPNMHeader(std::istream& ifs,const std::string& filename,
 }
 
 template<typename PixelT> 
-Image<PixelT> readPPMFile(const std::string& filename) {
+types::Image<PixelT> readPPMFile(const std::string& filename) {
    /* PPM Color Image */
-   if (!endsWith(filename, ".ppm"))
+   if (!utility::endsWith(filename, ".ppm"))
       throw std::invalid_argument("Incorrect File Type, expecting .ppm");
 
    std::fstream pgm_file;
@@ -57,7 +60,7 @@ Image<PixelT> readPPMFile(const std::string& filename) {
    pgm_file.close();
 
    // Copy all the image buffer data into the Image<PixelT> object
-   typedef Image<PixelT> ImageT;
+   typedef types::Image<PixelT> ImageT;
    ImageT image(rows,cols);
   
    PixelReader<ImageT>::readRGBPixels(image,buffer);
@@ -67,9 +70,9 @@ Image<PixelT> readPPMFile(const std::string& filename) {
 
 
 template<typename PixelT>
-Image<PixelT> readPGMFile(const std::string& filename) {
+types::Image<PixelT> readPGMFile(const std::string& filename) {
    /* PGM Gray-level Image */ 
-   if (!endsWith(filename, ".pgm"))
+   if (!utility::endsWith(filename, ".pgm"))
       throw std::invalid_argument("Incorrect File Type, expecting .pgm");
 
    std::fstream pgm_file;
@@ -92,7 +95,7 @@ Image<PixelT> readPGMFile(const std::string& filename) {
    pgm_file.close();
 
    // Copy all the image buffer data into the Image<PixelT> object
-   typedef Image<PixelT> ImageT;
+   typedef types::Image<PixelT> ImageT;
    ImageT image(rows,cols);
    
    PixelReader<ImageT>::readGrayPixels(image,buffer);
@@ -103,7 +106,7 @@ Image<PixelT> readPGMFile(const std::string& filename) {
 
 template<typename ImageT>
 void writePPMFile(const std::string& filename,const ImageT& image) {
-   if (!endsWith(filename, ".ppm"))
+   if (!utility::endsWith(filename, ".ppm"))
       throw std::invalid_argument("Incorrect file extension, expecting .ppm");
 
    std::ofstream outfile;
@@ -127,7 +130,7 @@ void writePPMFile(const std::string& filename,const ImageT& image) {
 
 template<unsigned channel,typename ImageT>
 void writePGMFile(const std::string& filename,const ImageT& image) {
-   if (!endsWith(filename, ".pgm"))
+   if (!utility::endsWith(filename, ".pgm"))
       throw std::invalid_argument("Incorrect file extension, expecting .pgm");
 
    std::fstream outfile;
@@ -147,4 +150,7 @@ void writePGMFile(const std::string& filename,const ImageT& image) {
    outfile.close();
 }
 
+
+} // namespace io
+} // namespace batchIP
 
