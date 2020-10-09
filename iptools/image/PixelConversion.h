@@ -26,6 +26,7 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
 
    // This is the expected conversion, since HSI will usually be normalized floating point
 
+   //std::cout << "RGB2HSI: " << rgba << " ";
    double sumRGB = (double)rgba.namedColor.red 
                  + (double)rgba.namedColor.green 
                  + (double)rgba.namedColor.blue;
@@ -46,6 +47,9 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    double h = denominator != 0 ? std::acos(numerator/denominator) : 0.0;
    if(b > g) h = twoPi() - h;
 
+   // Now normalize h to be between [0 and 1.0)
+   h /= twoPi();
+
    // Because rgb are normalized by their sum
    double s = 1.0 - 3.0*std::min(r,std::min(g,b));
    double i = sumRGB/(3*ChannelT1Traits::max());
@@ -56,8 +60,9 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    // s before saving it in HSIPixel. This compensation on saturation ensures
    // its space is valid from (0,1) throughout the intensity and hue space.
    // This compensation needs to be undone right before conversion back to RGB space.
-   if((twoThirds() < i) && (i < 1.0)) hsi.namedColor.saturation = s /(2.0/i - 2.0);
-   else hsi.namedColor.saturation = s;
+   if((twoThirds() < i) && (i < 1.0)) hsi.namedColor.saturation = static_cast<ChannelT2>(std::min(s /(2.0/i - 2.0),1.0));
+   else hsi.namedColor.saturation = static_cast<ChannelT2>(s);
+   //std::cout << hsi << std::endl;
 }
 
 template<typename ChannelT,typename ChannelTTraits>
@@ -90,7 +95,11 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
 
    // This is the expected conversion, since HSI will usually be normalized floating point
 
+   //std::cout << "HSI2RGBA: " << hsi << " ";
+
    double h = hsi.namedColor.hue;
+   // Now normalize h from [0 and 1.0) back to [0, 2pi)
+   h *= twoPi();
    double i = hsi.namedColor.intensity;
 
    // Before implementing the standard conversion, we need to convert normalized saturation
@@ -105,6 +114,8 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
                    std::cos(oneThirdsPi() - h120);
    double y = i * (1.0 +  s * invHue);
    
+   //std::cout << "y=" << y << " x=" << x << " ";
+
    // Due to numeric imprecision, in some cases, factor y
    // can exceed 1.0. If we do not compensate for that the color
    // space can wrap around causing extreme artifacts during HSI
@@ -118,12 +129,15 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
       y = 1.0;
       s = (y/i - 1.0)/invHue;
       x = i * (1.0 - s);
+      //std::cout << "y=" << y << " x=" << x << " ";
    }
-   double z = std::max(3.0*i - (x + y),0.0);
+   double z = std::min(1.0,std::max(3.0*i - (x + y),0.0));
+   //std::cout << "z=" << z << " ";
 
    if(h < twoThirdsPi()) assignRGB(rgba,y,z,x);
    else if(h < fourThirdsPi()) assignRGB(rgba,x,y,z);
    else assignRGB(rgba,z,x,y);
+   //std::cout << rgba << std::endl;
 }
 
 
@@ -153,14 +167,15 @@ void rgba2gray(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
 }
 
 
-template<template<typename,typename> class PixelT,
+template<template<typename,typename> class SrcPixelT,
          typename ChannelT1,typename ChannelT1Traits,
+         template<typename,typename> class TgtPixelT,
          typename ChannelT2,typename ChannelT2Traits>
-void channel2mono(const PixelT<ChannelT1,ChannelT1Traits>& pixel,
-                  MonochromePixel<ChannelT2,ChannelT2Traits>& mono,unsigned channel) {
+void channel2mono(const SrcPixelT<ChannelT1,ChannelT1Traits>& pixel,
+                  TgtPixelT<ChannelT2,ChannelT2Traits>& mono,unsigned channel) {
 
    double chanval =(double)pixel.indexedColor[channel] / ChannelT1Traits::max() * ChannelT2Traits::max();
-   mono.namedColor.mono = static_cast<ChannelT2>(chanval);
+   mono.indexedColor[0] = static_cast<ChannelT2>(chanval);
 }
 
 

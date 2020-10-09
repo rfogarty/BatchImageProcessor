@@ -289,6 +289,7 @@ public:
 //
 template<typename PixelT,typename ImageWindowT = ImageWindow<PixelT> >
 class ImageViewIterator {
+   template<typename PixelTT,typename ImageWindowTT> friend class ImageViewIterator;
 public:
    typedef ImageViewIterator<PixelT,ImageWindowT> this_type;
    typedef PixelT                                 value_type;
@@ -313,6 +314,38 @@ public:
    // ImageViewIterators must be constructed via these static begin/end functions or copy-constructed.
    static ImageViewIterator begin(ImageWindowT* window) { return ImageViewIterator(window); }
    static ImageViewIterator end(ImageWindowT* window) { return ImageViewIterator(window,window->rows()); }
+
+   ImageViewIterator(const ImageViewIterator& that) :
+      mImageWindow(that.mImageWindow),
+      rowPos(that.rowPos),
+      colPos(that.colPos)
+   {}
+
+   template<typename PixelTT,typename ImageWindowTT>
+   ImageViewIterator(const ImageViewIterator<PixelTT,ImageWindowTT>& that) :
+      mImageWindow(that.mImageWindow),
+      rowPos(that.rowPos),
+      colPos(that.colPos)
+   {}
+
+   ImageViewIterator& operator=(const ImageViewIterator& that) {
+      if(this != &that) {
+         this->mImageWindow = that.mImageWindow;
+         this->rowPos = that.rowPos;
+         this->colPos = that.colPos;
+      }
+      return *this;
+   }
+
+   template<typename PixelTT,typename ImageWindowTT>
+   ImageViewIterator& operator=(const ImageViewIterator<PixelTT,ImageWindowTT>& that) {
+      if(this != &that) {
+         this->mImageWindow = that.mImageWindow;
+         this->rowPos = that.rowPos;
+         this->colPos = that.colPos;
+      }
+      return *this;
+   }
 
    const PixelT& operator*() const {
       reportIfNotLessThan("rowPos",rowPos,mImageWindow->rows());
@@ -765,7 +798,9 @@ public:
 
    template<typename PixelTT>
    Image& operator=(const Image<PixelTT>& that) {
-      if(this != &that) {
+      void* utThis = this;
+      void* utThat = &that;
+      if(utThis != utThat) {
          resize(that.rows(),that.cols(),that.padding());
          iterator tpos = begin();
          iterator tend = end();
@@ -779,7 +814,9 @@ public:
 
    template<typename PixelTT>
    Image& operator=(const ImageView<PixelTT>& that) {
-      if(&this->mStore != that.mStore) {
+      void* utThisStore = &this->mStore;
+      void* utThatStore = that.mStore;
+      if(utThisStore != utThatStore) {
          resize(that.rows(),that.cols());
          iterator tpos = begin();
          iterator tend = end();

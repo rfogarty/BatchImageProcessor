@@ -72,7 +72,7 @@ void assignGrayscaleImages() {
 void makeProperGrayscaleView() {
    typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
-   typedef typename ImageT::image_view ViewT;
+   typedef ImageT::image_view ViewT;
 
    ImageT image(1000u,1200u);
 
@@ -83,7 +83,7 @@ void makeProperGrayscaleView() {
 void makeImproperGrayscaleView() {
    typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
-   typedef typename ImageT::image_view ViewT;
+   typedef ImageT::image_view ViewT;
 
    ImageT image(1000u,1200u);
 
@@ -99,7 +99,7 @@ void makeImproperGrayscaleView() {
 void moveGrayscaleView() {
    typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
-   typedef typename ImageT::image_view ViewT;
+   typedef ImageT::image_view ViewT;
 
    ImageT image(1000u,1200u);
 
@@ -116,7 +116,7 @@ void moveGrayscaleView() {
 void makeProperGrayscaleSubview() {
    typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
-   typedef typename ImageT::image_view ViewT;
+   typedef ImageT::image_view ViewT;
 
    ImageT image(1000u,1200u);
 
@@ -138,7 +138,7 @@ void makeProperGrayscaleSubview() {
 void makeImproperGrayscaleSubview() {
    typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
-   typedef typename ImageT::image_view ViewT;
+   typedef ImageT::image_view ViewT;
 
    ImageT image(1000u,1200u);
 
@@ -158,7 +158,7 @@ void makeImproperGrayscaleSubview() {
 void moveGrayscaleSubview() {
    typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
-   typedef typename ImageT::image_view ViewT;
+   typedef ImageT::image_view ViewT;
 
    ImageT image(1000u,1200u);
 
@@ -182,8 +182,8 @@ void moveGrayscaleSubview() {
 void testViewIteratorGrayscale() {
    typedef GrayAlphaPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
-   typedef typename ImageT::image_view ViewT;
-   typedef typename ViewT::iterator IteratorT;
+   typedef ImageT::image_view ViewT;
+   typedef ViewT::iterator IteratorT;
 
    ImageT image(1000u,1200u);
 
@@ -280,7 +280,7 @@ void assignColorImages() {
 void moveColorView() {
    typedef RGBAPixel<uint8_t> PixelT;
    typedef Image<PixelT> ImageT;
-   typedef typename ImageT::image_view ViewT;
+   typedef ImageT::image_view ViewT;
 
    ImageT image(1000u,1200u);
 

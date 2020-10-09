@@ -155,6 +155,45 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned channel,
    //std::cout << std::endl;
 }
 
+
+// Note: with this algorithm, we can stretch each HSI channel separately
+template<typename SrcImageT,typename TgtImageT,typename Value>
+void afixAnyHSI(const SrcImageT& src, TgtImageT& tgt,
+         Value value,unsigned channel,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   reportIfNotLessThan("value<max",value,SrcImageT::pixel_type::traits::max());
+
+   // Algorithm
+   // Idea here is simple. 
+   // 1) Convert image from RGBA to HSI
+   // 2) assigned afixed value to appropriate channel
+   // 3) convert HSI back into RGBA
+   typedef HSIPixel<double> HSIPixelT;
+   typedef Image<HSIPixelT> HSIImage;
+
+   reportIfNotLessThan("channels",channel,(unsigned)HSIImage::pixel_type::MAX_CHANNELS);
+
+   HSIImage hsiImage(src);
+
+   double normVal = (double)value/SrcImageT::pixel_type::traits::max();
+
+   typename HSIImage::iterator spos = hsiImage.begin();
+   typename HSIImage::iterator send = hsiImage.end();
+
+   for(;spos != send;++spos) {
+      spos->indexedColor[channel] = normVal;
+   }
+
+   tgt = hsiImage.defaultView();
+}
+
+
 template<typename SrcImageT,typename TgtImageT,typename Value>
 void histogramModify(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
          // This ugly bit is an unnamed argument with a default which means it neither           
@@ -181,12 +220,14 @@ void histogramModify(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
    }
 }
 
+
 template<typename SrcPixelT,typename TgtPixelT,typename Bounds,typename Constraints>
 inline void linearlyStretch(const SrcPixelT& src,TgtPixelT& tgt,double rescale,Bounds min, Bounds max,Constraints low,Constraints high) {
    if(src <= low) tgt = min;
    else if(src <= high) tgt = std::min(max,static_cast<Bounds>(rescale * (src - low)));
    else tgt = max;
 }
+
 
 template<typename SrcImageT,typename TgtImageT,typename Value>
 void histogramModifyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
@@ -197,7 +238,7 @@ void histogramModifyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   reportIfNotLessThan("cols!=max",low,high);
+   reportIfNotLessThan("low<high",low,high);
 
    typename SrcImageT::const_iterator spos = src.begin();
    typename SrcImageT::const_iterator send = src.end();
@@ -218,6 +259,40 @@ void histogramModifyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
    }
 }
 
+
+template<typename HSIImage,typename Bounds,typename Constraints>
+void linearlyStretchChannel(HSIImage& hsiImage,Bounds minBounds,Bounds maxBounds,
+                            Constraints low,Constraints high,unsigned channel) {
+
+   reportIfNotLessThan("channels",channel,(unsigned)HSIImage::pixel_type::MAX_CHANNELS);
+
+   double rescale = ((double) maxBounds - 
+                     (double) minBounds) /
+                        (high - low);
+
+   double lowNorm = (double)low/maxBounds;
+   double highNorm = (double)high/maxBounds;
+
+   typename HSIImage::pixel_type::value_type min = HSIImage::pixel_type::traits::min();
+   typename HSIImage::pixel_type::value_type max = HSIImage::pixel_type::traits::max();
+
+   std::cout << "linearStretch[channel=" << channel << "]" 
+      << " low=" << low << " high=" << high
+      << " lowNorm=" << lowNorm << " highNorm=" << highNorm
+      << " minBounds=" << (unsigned) minBounds << " maxBounds=" << (unsigned) maxBounds
+      << " rescale=" << rescale << std::endl;
+
+   typename HSIImage::iterator spos = hsiImage.begin();
+   typename HSIImage::iterator send = hsiImage.end();
+
+   for(;spos != send;++spos) {
+      linearlyStretch(spos->indexedColor[channel],
+                      spos->indexedColor[channel],
+                      rescale,min,max,lowNorm,highNorm);
+   }
+}
+
+
 template<typename SrcImageT,typename TgtImageT,typename Value>
 void histogramModifyHSI(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
          // This ugly bit is an unnamed argument with a default which means it neither           
@@ -227,36 +302,64 @@ void histogramModifyHSI(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   reportIfNotLessThan("cols!=max",low,high);
+   reportIfNotLessThan("low<high",low,high);
 
    // Algorithm
    // Idea here is simple. 
    // 1) Convert image from RGBA to HSI
    // 2) histogram stretch just the intensity channel
    // 3) convert HSI back into RGBA
-   typedef HSIPixel<double> IntensityPixel;
-   typedef Image<IntensityPixel> HSIImage;
+   typedef HSIPixel<double> HSIPixelT;
+   typedef Image<HSIPixelT> HSIImage;
 
    HSIImage hsiImage(src);
 
-   double rescale = ((double) SrcImageT::pixel_type::traits::max() - 
-                     (double) SrcImageT::pixel_type::traits::min()) /
-                                   (high - low);
+   linearlyStretchChannel(hsiImage,
+                          SrcImageT::pixel_type::traits::min(),
+                          SrcImageT::pixel_type::traits::max(),
+                          low,high,HSIPixelT::INTENSITY_CHANNEL);
 
-   double lowNorm = (double)low/SrcImageT::pixel_type::traits::max();
-   double highNorm = (double)high/SrcImageT::pixel_type::traits::max();
+   tgt = hsiImage.defaultView();
+}
 
-   typename HSIImage::pixel_type::value_type min = HSIImage::pixel_type::traits::min();
-   typename HSIImage::pixel_type::value_type max = HSIImage::pixel_type::traits::max();
 
-   typename HSIImage::iterator spos = hsiImage.begin();
-   typename HSIImage::iterator send = hsiImage.end();
+// Note: with this algorithm, we can stretch each HSI channel separately
+template<typename SrcImageT,typename TgtImageT,typename Value>
+void histogramModifyHSI(const SrcImageT& src, TgtImageT& tgt,
+         Value lowI,Value highI,Value lowS, Value highS,Value lowH, Value highH,
+         // This ugly bit is an unnamed argument with a default which means it neither           
+         // contributes to the mangled declaration name nor requires an argument. So what is the 
+         // point? It still participates in SFINAE to help select that this is an appropriate    
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+         // deduction so can't be applied to in parameter directly.                              
+         typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   for(;spos != send;++spos) {
-      linearlyStretch(spos->namedColor.intensity,
-                      spos->namedColor.intensity,
-                      rescale,min,max,lowNorm,highNorm);
-   }
+   reportIfNotLessThan("lowI<highI",lowI,highI);
+   reportIfNotLessThan("lowS<highS",lowS,highS);
+   reportIfNotLessThan("lowH<highH",lowH,highH);
+
+   // Algorithm
+   // Idea here is simple. 
+   // 1) Convert image from RGBA to HSI
+   // 2) histogram stretch just the intensity,saturation and hue channels
+   // 3) convert HSI back into RGBA
+   typedef HSIPixel<double> HSIPixelT;
+   typedef Image<HSIPixelT> HSIImage;
+
+   HSIImage hsiImage(src);
+
+   linearlyStretchChannel(hsiImage,
+                          SrcImageT::pixel_type::traits::min(),
+                          SrcImageT::pixel_type::traits::max(),
+                          lowI,highI,HSIPixelT::INTENSITY_CHANNEL);
+   linearlyStretchChannel(hsiImage,
+                          SrcImageT::pixel_type::traits::min(),
+                          SrcImageT::pixel_type::traits::max(),
+                          lowS,highS,HSIPixelT::SATURATION_CHANNEL);
+   linearlyStretchChannel(hsiImage,
+                          SrcImageT::pixel_type::traits::min(),
+                          SrcImageT::pixel_type::traits::max(),
+                          lowH,highH,HSIPixelT::HUE_CHANNEL);
 
    tgt = hsiImage.defaultView();
 }
@@ -495,6 +598,45 @@ void binarizeColor(const SrcImageT& src, TgtImageT& tgt, float thresholdDistance
    }
 }
 
+/*-----------------------------------------------------------------------**/
+template<typename SrcImageT,typename TgtImageT>
+void selectColor(const SrcImageT& src, TgtImageT& tgt, unsigned channel,
+                   // This ugly bit is an unnamed argument with a default which means it neither           
+                   // contributes to the mangled declaration name nor requires an argument. So what is the 
+                   // point? It still participates in SFINAE to help select that this is an appropriate    
+                   // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+                   // deduction so can't be applied to in parameter directly.                              
+                   typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   typename SrcImageT::const_iterator spos = src.begin();
+   typename SrcImageT::const_iterator send = src.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
+
+   for(;spos != send;++spos,++tpos) channel2mono(*spos,*tpos,channel);
+}
+
+/*-----------------------------------------------------------------------**/
+template<typename SrcImageT,typename TgtImageT>
+void selectHSI(const SrcImageT& src, TgtImageT& tgt, unsigned channel,
+               // This ugly bit is an unnamed argument with a default which means it neither           
+               // contributes to the mangled declaration name nor requires an argument. So what is the 
+               // point? It still participates in SFINAE to help select that this is an appropriate    
+               // matching function given its arguments. Note, SFINAE techniques are incompatible with 
+               // deduction so can't be applied to in parameter directly.                              
+               typename std::enable_if<is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+
+   typedef Image<HSIPixel<float> > HSIImageT;
+
+   HSIImageT hsiSrc(src.rows(),src.cols());
+   hsiSrc = src;
+
+   typename HSIImageT::const_iterator spos = hsiSrc.begin();
+   typename HSIImageT::const_iterator send = hsiSrc.end();
+   typename TgtImageT::iterator tpos = tgt.begin();
+
+   for(;spos != send;++spos,++tpos) channel2mono(*spos,*tpos,channel);
+}
+
 
 
 /*-----------------------------------------------------------------------**/
@@ -519,170 +661,6 @@ void binarizeDouble(const SrcImageT& src, TgtImageT& tgt, unsigned thresholdLow,
 
    }
 }
-
-
-template<typename PixelT,typename AccumulatorVariableTT>
-struct PixelSquareSubtractor {
-   AccumulatorVariableTT& mSquareAccumulator;
-   PixelSquareSubtractor(AccumulatorVariableTT& squareAccumulator) : mSquareAccumulator(squareAccumulator) {}
-   void operator()(const PixelT& pixel) { 
-      mSquareAccumulator -= pixel.namedColor.gray * pixel.namedColor.gray; }
-};
-
-
-template<typename PixelT,typename AccumulatorVariableTT>
-struct PixelSquareAdder {
-   AccumulatorVariableTT& mSquareAccumulator;
-   PixelSquareAdder(AccumulatorVariableTT& squareAccumulator) :  mSquareAccumulator(squareAccumulator) {}
-   void operator()(const PixelT& pixel) { 
-      mSquareAccumulator += pixel.namedColor.gray * pixel.namedColor.gray;
-   }
-};
-
-
-// Computing Variance using the "Sum of Squares" method. Note:
-// that under some circumstances that this approach is numerically unstable.
-// For more details on this see:
-// https://www.johndcook.com/blog/2008/09/26/comparing-three-methods-of-computing-standard-deviation/
-//
-// It was not apparent how to apply the Welford method to a moving windowed average/variance.
-// But for low-precision (uint8_t) grayscale, we'd need to have rather large
-// window size (larger than 16x16) to exceed the precision of the accumulators.
-//
-// Furthermore, for the derivation of the Variance + Mean^2 term, if the window
-// shrinks to 1 (namely in the corners or edges of the Window, an unbiased variance calculation
-// leads to divide by zero terms in both the sum of squares and the square of average term. If
-// the biased mean, on the other hand is used, we have numerous benefits:
-//   1) The square of the average term completely falls away (so does not need to be calculate)
-//   2) The sum of the square terms is simply divided by the window size without needing
-//      a difference term with large precision.
-//   3) Window size may be increased rather dramatically from 15x15 to 257x257 (for uint8_t
-//   grayscale, and unsigned int accumulator).
-// I.e. using the biased estimate for variance provides a stable, numerical and faster solution.
-// We also expect that the bias is in the same direction for all samples, and we really
-// only care about the relative order of M^2 + S^2 terms for histogram equalization (by sorting),
-// so bias is of no concern.
-template<typename ImageViewT,
-         typename PixelT = typename ImageViewT::pixel_type,
-         typename AccumulatorVariableT = typename AccumulatorVariableSelect<PixelT>::type >
-class SumOfSquares {
-private:
-   typedef ElasticImageView<const PixelT>                     ConstElasticViewT;
-   typedef PixelSquareSubtractor<PixelT,AccumulatorVariableT> SubtractorT;
-   typedef PixelSquareAdder<PixelT,AccumulatorVariableT>      AdderT;
-
-   typename ImageViewT::const_image_view mBoundingView;
-   ConstElasticViewT                     mElasticView;
-   AccumulatorVariableT                  mSquareAccumulator;
-   SubtractorT                           mSubtractor;
-   AdderT                                mAdder;
-
-public:
-   typedef typename PixelT::value_type value_type;
-
-   SumOfSquares(const ImageViewT& imageView,unsigned windowSize) :
-      mBoundingView(imageView),
-      mElasticView(mBoundingView.elastic_view(windowSize,windowSize)),
-      // Initialize mAccumulator with element 0,0
-      mSquareAccumulator(mElasticView.pixel(0,0).namedColor.gray*mElasticView.pixel(0,0).namedColor.gray),
-      mSubtractor(mSquareAccumulator),
-      mAdder(mSquareAccumulator)
-   {}
-
-   value_type squareAverage() {
-      return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mSquareAccumulator / mElasticView.size())));
-   }
-
-   void operator++() {
-      mElasticView.moveRight(mSubtractor,mAdder);
-   }
-};
-
-
-template<typename ParametricImageT>
-void initParametricImage(ParametricImageT& parImage) {
-   
-   typedef typename ParametricImageT::pixel_type PixelT;
-
-   for(unsigned r = 0; r < parImage.rows();++r) {
-      for(unsigned c = 0; c < parImage.cols();++c) {
-         PixelT& rpix = parImage.pixel(r,c);
-         rpix.row = r;
-         rpix.col = c;
-      }
-   }
-}
-
-template<typename SrcImageT,typename TgtImageT>
-void histogramUnify(const SrcImageT& src, TgtImageT& tgt,unsigned windowSize,
-         // This ugly bit is an unnamed argument with a default which means it neither           
-         // contributes to the mangled declaration name nor requires an argument. So what is the 
-         // point? It still participates in SFINAE to help select that this is an appropriate    
-         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
-         // deduction so can't be applied to in parameter directly.                              
-         typename std::enable_if<is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
-
-   typedef typename SrcImageT::pixel_type PixelT;
-   typedef typename AccumulatorVariableSelect<PixelT>::type AccumulatorVariableT;
-   typedef ParametricGrayAlphaPixel<AccumulatorVariableT> IntermediatePixelT;
-   typedef Image<IntermediatePixelT> IntermediateImageT;
-
-   reportIfNotLessThan("windowSize",2u,windowSize);
-   reportIfNotEqual("windowSize (which should be odd)",windowSize-1,((windowSize >> 1u) << 1u));
-   reportIfNotEqual("src.rows() != tgt.rows()",src.rows(),tgt.rows());
-   reportIfNotEqual("src.cols() != tgt.cols()",src.cols(),tgt.cols());
-
-   unsigned rows = src.rows();
-   unsigned cols = src.cols();
-
-   // We can write out result to iterator operating over entire passed Image or ImageView
-   // since the iteration order is exactly the same as our loops.
-   IntermediateImageT interImage(src.rows(),src.cols());
-   // Start by initializing parametric values;
-   initParametricImage(interImage);
-
-   // TODO: To Complete!!!
-//   typename TgtImageT::iterator tpos = tgt.begin();
-//
-//   // Start by smoothing along X for each row
-//   for(unsigned i = 0;i < rows;++i) {
-//      typedef SumOfSquares<SrcImageT> SquareSmoothT;
-//      typedef typename SrcImageT::image_view RowViewT;
-//      
-//      RowViewT rowView(src.view(rows-i,cols,i));
-//      SquareSmoothT squareSmooth(rowView,windowSize);
-//      // We always start with the first answer precomputed
-//      // which also implies we will only iterate and shift cols-1 times.
-//      tpos->namedColor.gray = smoothX.average();
-//      ++tpos;
-//      for(unsigned j = 1;j < cols;++j,++tpos) {
-//         ++smoothX;
-//         tpos->namedColor.gray = smoothX.average();
-//      }
-//   }
-//
-//   typedef typename TgtImageT::image_view ColumnViewT; // not strictly a Column type, but will be
-//                                                       // parameterized below to operate as one.
-//   typedef typename ColumnViewT::iterator ColumnIteratorT;
-//   // In this case our iteration order is flipped, and since we don't have a column-first
-//   // iterator type, we just need to create column views to write out our output.
-//   for(unsigned j = 0; j < cols; ++j) {
-//      typedef SmoothY<TgtImageT> SmoothYT;
-//      ColumnViewT columnView(tgt.view(rows,1,0,j));
-//      SmoothYT smoothY(columnView,windowSize);
-//      ColumnIteratorT cpos = columnView.begin();
-//      // As above, we always start with the first answer precomputed
-//      // which also implies we will only iterate and shift rows-1 times.
-//      cpos->namedColor.gray = smoothY.average();
-//      ++cpos;
-//      for(unsigned i = 1;i < rows;++i,++cpos) {
-//         ++smoothY;
-//         cpos->namedColor.gray = smoothY.average();
-//      }
-//   }
-}
-
-
 
 template<typename PixelT,typename AccumulatorVariableTT>
 struct PixelSubtractor {
@@ -1011,6 +989,71 @@ HISTACTION(HistogramModifyHSI,histogramModifyHSI)
 
 
 template<typename ImageT>
+class HistogramModifyAnyHSI : public Action<ImageT> {
+public:
+   typedef HistogramModifyAnyHSI<ImageT> ThisT;
+
+private:                                             
+   unsigned mLowI;
+   unsigned mHighI;
+   unsigned mLowS;
+   unsigned mHighS;
+   unsigned mLowH;
+   unsigned mHighH;
+
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,
+            unsigned lowI, unsigned highI,
+            unsigned lowS, unsigned highS,
+            unsigned lowH, unsigned highH) const {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      histogramModifyHSI(roi2view(src,roi),tgtview,
+                         lowI,highI,lowS,highS,lowH,highS);
+   }
+
+   enum { NUM_PARAMETERS = 6 };
+
+public:   
+   HistogramModifyAnyHSI(unsigned lowI,unsigned highI,
+                         unsigned lowS,unsigned highS,
+                         unsigned lowH,unsigned highH) : 
+      mLowI(lowI), mHighI(highI),
+      mLowS(lowS), mHighS(highS),
+      mLowH(lowH), mHighH(highH) {}
+
+   virtual ~HistogramModifyAnyHSI() {}
+
+   virtual ActionType type() const { return HISTOGRAM_MOD; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
+      run(src,tgt,roi,mLowI,mHighI,mLowS,mHighS,mLowH,mHighH);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      unsigned lowI = parseWord<unsigned>(parameters[0]);
+      unsigned highI = parseWord<unsigned>(parameters[1]);
+      unsigned lowS = parseWord<unsigned>(parameters[2]);
+      unsigned highS = parseWord<unsigned>(parameters[3]);
+      unsigned lowH = parseWord<unsigned>(parameters[4]);
+      unsigned highH = parseWord<unsigned>(parameters[5]);
+      run(src,tgt,roi,lowI,highI,lowS,highS,lowH,highH);
+   }
+
+   static HistogramModifyAnyHSI* make(std::istream& ins) {
+      unsigned lowI = parseWord<unsigned>(ins);
+      unsigned highI = parseWord<unsigned>(ins);
+      unsigned lowS = parseWord<unsigned>(ins);
+      unsigned highS = parseWord<unsigned>(ins);
+      unsigned lowH = parseWord<unsigned>(ins);
+      unsigned highH = parseWord<unsigned>(ins);
+      return new HistogramModifyAnyHSI<ImageT>(lowI,highI,lowS,highS,lowH,highH);                                     
+   }
+};
+
+
+template<typename ImageT>
 class Histogram : public Action<ImageT> {
 public:
    typedef Histogram<ImageT> ThisT;
@@ -1205,7 +1248,6 @@ public:
 };
 
 
-
 template<typename ImageT>
 class BinarizeDT : public Action<ImageT> {
 public:
@@ -1252,7 +1294,6 @@ public:
       return new BinarizeDT<ImageT>(thresholdLow,thresholdHigh);
    }
 };
-
 
 
 template<typename ImageT>
@@ -1303,6 +1344,139 @@ public:
       referenceColor.namedColor.green = parseWord<unsigned>(ins);
       referenceColor.namedColor.blue = parseWord<unsigned>(ins);
       return new BinarizeColor<ImageT>(threshold,referenceColor);
+   }
+};
+
+
+template<typename ImageSrc,typename ImageTgt = Image<GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
+class SelectColor : public Action<ImageSrc,ImageTgt> {
+public:
+   typedef Action<ImageSrc,ImageTgt> SuperT;
+   typedef SelectColor<ImageSrc,ImageTgt> ThisT;
+   typedef typename ImageSrc::pixel_type pixel_type;
+
+private:
+   unsigned mChannel;
+
+   void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi,unsigned channel) const {
+      typename ImageTgt::image_view tgtview = roi2view(tgt,roi);
+      selectColor(roi2view(src,roi),tgtview,channel);
+   }
+
+   enum { NUM_PARAMETERS = 1 };
+
+public:
+   SelectColor(unsigned channel) : mChannel(channel) {}
+
+   virtual ~SelectColor() {}
+
+   virtual ActionType type() const { return SELECT_COLOR; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi) const {
+      run(src,tgt,roi,mChannel);
+   }
+
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      unsigned channel = parseWord<unsigned>(parameters[0]);
+      run(src,tgt,roi,channel);
+   }
+
+   static SelectColor* make(std::istream& ins) {
+      unsigned channel = parseWord<unsigned>(ins);
+      return new SelectColor<ImageSrc,ImageTgt>(channel);
+   }
+};
+
+
+template<typename ImageSrc,typename ImageTgt = Image<GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
+class SelectHSI : public Action<ImageSrc,ImageTgt> {
+public:
+   typedef Action<ImageSrc,ImageTgt> SuperT;
+   typedef SelectHSI<ImageSrc,ImageTgt> ThisT;
+   typedef typename ImageSrc::pixel_type pixel_type;
+
+private:
+   unsigned mChannel;
+
+   void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi,unsigned channel) const {
+      typename ImageTgt::image_view tgtview = roi2view(tgt,roi);
+      selectHSI(roi2view(src,roi),tgtview,channel);
+   }
+
+   enum { NUM_PARAMETERS = 1 };
+
+public:
+   SelectHSI(unsigned channel) : mChannel(channel) {}
+
+   virtual ~SelectHSI() {}
+
+   virtual ActionType type() const { return SELECT_HSI; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi) const {
+      run(src,tgt,roi,mChannel);
+   }
+
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      unsigned channel = parseWord<unsigned>(parameters[0]);
+      run(src,tgt,roi,channel);
+   }
+
+   static SelectHSI* make(std::istream& ins) {
+      unsigned channel = parseWord<unsigned>(ins);
+      return new SelectHSI<ImageSrc,ImageTgt>(channel);
+   }
+};
+
+
+template<typename ImageT>
+class AfixAnyHSI : public Action<ImageT> {
+public:
+   typedef Action<ImageT> SuperT;
+   typedef AfixAnyHSI<ImageT> ThisT;
+   typedef typename ImageT::pixel_type pixel_type;
+
+private:
+   uint8_t  mValue;
+   unsigned mChannel;
+
+   void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,uint8_t value,unsigned channel) const {
+      typename ImageT::image_view tgtview = roi2view(tgt,roi);
+      afixAnyHSI(roi2view(src,roi),tgtview,value,channel);
+   }
+
+   enum { NUM_PARAMETERS = 2 };
+
+public:
+   AfixAnyHSI(uint8_t value,unsigned channel) : mValue(value),mChannel(channel) {}
+
+   virtual ~AfixAnyHSI() {}
+
+   virtual ActionType type() const { return SELECT_HSI; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi) const {
+      run(src,tgt,roi,mValue,mChannel);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const RegionOfInterest& roi,const ParameterPack& parameters) const {
+      reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+      uint8_t value = (uint8_t)parseWord<unsigned>(parameters[0]);
+      unsigned channel = parseWord<unsigned>(parameters[1]);
+      run(src,tgt,roi,value,channel);
+   }
+
+   static AfixAnyHSI* make(std::istream& ins) {
+      uint8_t value = (uint8_t)parseWord<unsigned>(ins);
+      unsigned channel = parseWord<unsigned>(ins);
+      std::cout << "AfixAnyHSI::make value=" << (unsigned) value << " channel=" << channel << std::endl;
+      return new AfixAnyHSI<ImageT>(value,channel);
    }
 };
 

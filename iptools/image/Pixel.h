@@ -381,7 +381,7 @@ struct ParametricGrayAlphaPixel {
       {}
 #endif
    };
-   
+
    union {
       Channels indexedColor;
       GA namedColor;
@@ -409,8 +409,5 @@ struct ParametricGrayAlphaPixel {
       return !(*this == that);
    }
 };
-
-
-
 
 

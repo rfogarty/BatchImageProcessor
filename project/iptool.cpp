@@ -137,6 +137,8 @@ void parseAndRunOperation(const std::string& line) {
 
    try {
       inputfile = parseWord<std::string>(ss);
+      if(startsWith(inputfile,"#")) return;
+      std::cout << "Processing: " << (line.size() > 80 ? line.substr(0,80) + "..." : line) << std::endl;
       outputfile = parseWord<std::string>(ss);
       operation = parseWord<std::string>(ss);
    }
@@ -148,8 +150,7 @@ void parseAndRunOperation(const std::string& line) {
 
    using namespace algorithm;
    
-   if(startsWith(inputfile,"#")); // commented line, so do nothing
-   else if(endsWith(inputfile,".pgm")) {
+   if(endsWith(inputfile,".pgm")) {
 
       typedef GrayAlphaPixel<uint8_t> PixelT;
       typedef Image<PixelT> ImageT;
@@ -186,7 +187,11 @@ void parseAndRunOperation(const std::string& line) {
          else if(operation == "histChan")      process(inputfile,outputfile,operation,line,ss,HistogramChannel<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModifyRGB<ImageT>::make(ss));
          else if(operation == "histModHSI")    process(inputfile,outputfile,operation,line,ss,HistogramModifyHSI<ImageT>::make(ss));
+         else if(operation == "histModAnyHSI") process(inputfile,outputfile,operation,line,ss,HistogramModifyAnyHSI<ImageT>::make(ss));
          else if(operation == "binarizeColor") process(inputfile,outputfile,operation,line,ss,BinarizeColor<ImageT>::make(ss));
+         else if(operation == "selectColor")   process(inputfile,outputfile,operation,line,ss,SelectColor<ImageT>::make(ss));
+         else if(operation == "selectHSI")     process(inputfile,outputfile,operation,line,ss,SelectHSI<ImageT>::make(ss));
+         else if(operation == "afixAnyHSI")    process(inputfile,outputfile,operation,line,ss,AfixAnyHSI<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;

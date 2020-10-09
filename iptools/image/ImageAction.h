@@ -16,7 +16,9 @@ enum ActionType {
    SCALE,
    HISTOGRAM,
    HISTOGRAM_MOD,
-   UNIFORM_SMOOTH
+   UNIFORM_SMOOTH,
+   SELECT_COLOR,
+   SELECT_HSI
 };
 
 // Used to push ROI function parameters to run callbacks.
