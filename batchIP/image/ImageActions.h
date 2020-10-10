@@ -249,7 +249,7 @@ private:
             unsigned lowH, unsigned highH) const {
       typename ImageT::image_view tgtview = types::roi2view(tgt,roi);
       algorithm::histogramModifyHSI(types::roi2view(src,roi),tgtview,
-                         lowI,highI,lowS,highS,lowH,highS);
+                         lowI,highI,lowS,highS,lowH,highH);
    }
 
    enum { NUM_PARAMETERS = 6 };
