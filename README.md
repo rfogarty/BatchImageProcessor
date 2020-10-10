@@ -104,14 +104,18 @@ identify multiple ROI sections and parameters.
 |-----------------------|---------------|----------|-----------------------------|-----------------------------------------------
 | Intensity             | add           |        1 | <amount     (int)>          | brighten or darken a grayscale image.
 | Binarization          | binarize      |        1 | <threshold  (unsigned)>     | binarize the pixels with the threshold.
+| Crop                  | crop          |        4 | <rowBegin   (unsigned)>     | crop an image based on region
+|                       |               |          | <colBegin   (unsigned)>     | 
+|                       |               |          | <rows       (unsigned)>     | 
+|                       |               |          | <cols       (unsigned)>     | 
 | OptimalBinarization   | optBinarize   |        0 |                             | binarize the image using optimal threshold.
 | OtsuBinarization      | otsuBinarize  |        0 |                             | binarize the image using Otsu threshold.
 | BinarizationRange     | binarizeDT    |        2 | <threshLow  (unsigned)>     | binarize the pixels with 2 thresholds.
 |                       |               |          | <threshHigh (unsigned)>     | 
-| Histogram             | hist          |        0 |                             | compute histogram of grayscale intensity.
+| Histogram[^1]         | hist          |        1 | <type       (unsigned 0,2)> | compute histogram of grayscale intensity; type is 0-linear, 2-log
 | HistogramModify       | histMod       |        2 | <low        (unsigned)>     | histogram stretch values between low and high.
 |                       |               |          | <high       (unsigned)>     | 
-| Resize [^1]           | scale         |        1 | <0.5 or 2.0 (float)>        | double or halve the size of an image.
+| Resize [^2]           | scale         |        1 | <0.5 or 2.0 (float)>        | double or halve the size of an image.
 | Smooth                | uniformSmooth |        1 | <windowSize (odd,unsigned)> | smooth an image using uniform box.
 
 
@@ -126,7 +130,12 @@ identify multiple ROI sections and parameters.
 |                       |               |          | <red        (unsigned)>     | 
 |                       |               |          | <green      (unsigned)>     | 
 |                       |               |          | <blue       (unsigned)>     | 
-| Histogram[^2]         | histChan      |        1 | <channel    (unsigned 0-2)> | compute histogram of one of the RGB channel intensities.
+| Crop                  | crop          |        4 | <rowBegin   (unsigned)>     | crop an image based on region
+|                       |               |          | <colBegin   (unsigned)>     | 
+|                       |               |          | <rows       (unsigned)>     | 
+|                       |               |          | <cols       (unsigned)>     | 
+| Histogram[^1][^3]     | histChan      |        2 | <type       (unsigned 0,2)> | compute histogram of the RGB channel intensity; type is 0-linear, 2-log
+|                       |               |          | <channel    (unsigned 0-2)> | 
 | HistogramModify       | histMod       |        2 | <low        (unsigned)>     | histogram stretch all RGB values between low and high.
 |                       |               |          | <high       (unsigned)>     | 
 | HistogramModIntensity | histModI      |        2 | <low        (unsigned)>     | histogram stretch intensity of color file between low and high.
@@ -140,11 +149,15 @@ identify multiple ROI sections and parameters.
 |                       |               |          | <highS      (unsigned)>     | 
 |                       |               |          | <lowH       (unsigned)>     | 
 |                       |               |          | <highH      (unsigned)>     | 
-| SelectColor[^2]       | selectColor   |        1 | <channel    (unsigned 0-2)> | output one channel of RGB to gray image
-| SelectHSI[^2]         | selectHSI     |        1 | <channel    (unsigned 0-2)> | output one channel of HSI to gray image
-| AfixAnyHSI[^2]        | afixAnyHSI    |        2 | <value      (unsigned)>     | Afix all pixels to a single value for one of H-S-I
+| SelectColor[^3]       | selectColor   |        1 | <channel    (unsigned 0-2)> | output one channel of RGB to gray image
+| SelectHSI[^3]         | selectHSI     |        1 | <channel    (unsigned 0-2)> | output one channel of HSI to gray image
+| AfixAnyHSI            | afixAnyHSI    |        2 | <value      (unsigned)>     | Afix all pixels to a single value for one of H-S-I
 |                       |               |          | <channel    (unsigned 0-2)> | 
 
 
-[^1]: Note, Resize function does not support the ROI feature.
-[^2]: Note, color histogram, selectColor and selectHSI functions require the output to be a grayscale file with suffix .pgm
+[^1]: Note, Histogram (hist,histChan) can use the ROI feature, but support just one region.
+
+[^2]: Note, Resize function does not support the ROI feature.
+
+[^3]: Note, color histogram, selectColor and selectHSI functions require the output to be a grayscale file with suffix .pgm
+

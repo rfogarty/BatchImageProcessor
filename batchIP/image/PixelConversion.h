@@ -29,7 +29,6 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
 
    // This is the expected conversion, since HSI will usually be normalized floating point
 
-   //std::cout << "RGB2HSI: " << rgba << " ";
    double sumRGB = (double)rgba.namedColor.red 
                  + (double)rgba.namedColor.green 
                  + (double)rgba.namedColor.blue;
@@ -65,7 +64,6 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    // This compensation needs to be undone right before conversion back to RGB space.
    if((stdesque::numeric::twoThirds() < i) && (i < 1.0)) hsi.namedColor.saturation = static_cast<ChannelT2>(std::min(s /(2.0/i - 2.0),1.0));
    else hsi.namedColor.saturation = static_cast<ChannelT2>(s);
-   //std::cout << hsi << std::endl;
 }
 
 template<typename ChannelT,typename ChannelTTraits>
@@ -98,8 +96,6 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
 
    // This is the expected conversion, since HSI will usually be normalized floating point
 
-   //std::cout << "HSI2RGBA: " << hsi << " ";
-
    double h = hsi.namedColor.hue;
    // Now normalize h from [0 and 1.0) back to [0, 2pi)
    h *= stdesque::numeric::twoPi();
@@ -117,8 +113,6 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
                    std::cos(stdesque::numeric::oneThirdsPi() - h120);
    double y = i * (1.0 +  s * invHue);
    
-   //std::cout << "y=" << y << " x=" << x << " ";
-
    // Due to numeric imprecision, in some cases, factor y
    // can exceed 1.0. If we do not compensate for that the color
    // space can wrap around causing extreme artifacts during HSI
@@ -132,15 +126,14 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
       y = 1.0;
       s = (y/i - 1.0)/invHue;
       x = i * (1.0 - s);
-      //std::cout << "y=" << y << " x=" << x << " ";
    }
+   // Kludge: yet another numerical issue can put z greater than 1.0
+   // so we clip any value above 1.0.
    double z = std::min(1.0,std::max(3.0*i - (x + y),0.0));
-   //std::cout << "z=" << z << " ";
 
    if(h < stdesque::numeric::twoThirdsPi()) assignRGB(rgba,y,z,x);
    else if(h < stdesque::numeric::fourThirdsPi()) assignRGB(rgba,x,y,z);
    else assignRGB(rgba,z,x,y);
-   //std::cout << rgba << std::endl;
 }
 
 

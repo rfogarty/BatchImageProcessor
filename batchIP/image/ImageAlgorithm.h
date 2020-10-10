@@ -46,10 +46,10 @@ void add(const SrcImageT& src, TgtImageT& tgt, Value value,
 
 
 // Thinking 4 billion is more than big enough for any histogram height
-typedef std::vector<uint32_t> HistogramT;
+typedef std::vector<double> HistogramT;
 
 template<typename SrcImageT>
-HistogramT computeHistogram(const SrcImageT& src,unsigned cols,unsigned channel,uint32_t& maxColumnHeight) {
+HistogramT computeHistogram(const SrcImageT& src,unsigned cols,unsigned channel,double& maxColumnHeight) {
 
    typename SrcImageT::const_iterator spos = src.begin();
    typename SrcImageT::const_iterator send = src.end();
@@ -65,8 +65,65 @@ HistogramT computeHistogram(const SrcImageT& src,unsigned cols,unsigned channel,
 }
 
 
+void normalizeHistogram(HistogramT& histogram,unsigned rows,double maxColumnHeight) {
+   // Normalize the Histogram to the bounds of the rows dimension, to scale to drawing
+   HistogramT::iterator       hpos = histogram.begin();
+   const HistogramT::iterator hend = histogram.end();
+
+   double normScale1 = (double) 1.0 / maxColumnHeight;
+   double normScale2 = (double) rows;
+   
+   for(;hpos != hend;++hpos) *hpos = std::min(1.0,*hpos * normScale1)*normScale2;
+}
+
+
+void logNormalizeHistogram(HistogramT& histogram,unsigned rows,double maxColumnHeight,unsigned logBase) {
+   // Log Normalize the Histogram to the bounds of the rows dimension, to scale to drawing
+   HistogramT::iterator       hpos = histogram.begin();
+   const HistogramT::iterator hend = histogram.end();
+
+   // TODO: All log functions are scale invariant, so doesn't really 
+   // matter what the base is. It's possible to define a similar
+   // function that that "exaggerates values", basically we divide
+   // by a sigmoid funcion (or something like that). TBD...
+   double logD = std::log(2.0);
+   double logMaxColumnHeight = std::log(maxColumnHeight)/logD + 1.0;
+
+   double normScale1 = (double) 1.0 / logMaxColumnHeight;
+   double normScale2 = (double) rows;
+   
+   for(;hpos != hend;++hpos) {
+      *hpos = *hpos > 0.0 ? std::max(0.0,std::log(*hpos)/logD) + 1.0 : 0.0;
+      *hpos = std::min(1.0,*hpos * normScale1)*normScale2;
+   }
+}
+
+
+template<typename TgtImageT>
+void drawHistogram(TgtImageT& tgt,const HistogramT& histogram) {
+   // Now we need to compose the histogram, which is a little tricky if done with iterators.
+   // Instead, we'll simply use the pixel coordinates to paint. This would be much, much simpler if I first
+   // created an Image transpose function...
+
+   // 1) first whiten the whole image
+   typename TgtImageT::iterator tpos = tgt.begin();
+   typename TgtImageT::iterator tend = tgt.end();
+   for(;tpos != tend;++tpos) tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
+
+   // 2) blacken the histograms working from the top, down
+   unsigned height = tgt.rows();
+   HistogramT::const_iterator hpos = histogram.begin();
+   HistogramT::const_iterator hend = histogram.end();
+   for(unsigned col = 0;hpos != hend;++hpos,++col) {
+      for(unsigned r = (unsigned)*hpos;r > 0;--r) {
+         tgt.pixel(height - r,col).namedColor.gray = TgtImageT::pixel_type::traits::min();
+      }
+   }
+}
+
+
 template<typename SrcImageT,typename TgtImageT>
-void histogram(const SrcImageT& src, TgtImageT& tgt,
+void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -77,40 +134,17 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,
    utility::reportIfNotEqual("cols!=max",tgt.cols(),(unsigned)TgtImageT::pixel_type::traits::max()+1u);
  
    // First compute Histogram
-   uint32_t maxColumnHeight = 0;
+   double maxColumnHeight = 0;
    HistogramT histogram(computeHistogram(src,TgtImageT::pixel_type::traits::max()+1u,SrcImageT::pixel_type::GRAY_CHANNEL,maxColumnHeight));
 
-   // Now we need to normalize the Histogram to the bounds of the rows dimension, to scale to drawing
-   typedef typename HistogramT::iterator HistogramIterator;
-   HistogramIterator hpos = histogram.begin();
-   const HistogramIterator hend = histogram.end();
-   float normScale = (float) tgt.rows() / maxColumnHeight;
-   for(;hpos != hend;++hpos) *hpos = static_cast<typename TgtImageT::pixel_type::value_type>(*hpos * normScale);
+   if(logBase < 2) normalizeHistogram(histogram,tgt.rows(),maxColumnHeight);
+   else logNormalizeHistogram(histogram,tgt.rows(),maxColumnHeight,logBase);
 
-   // Now we need to compose the histogram, which is a little tricky if done with iteration
-   // Instead, we'll simply use the pixel coordinates to paint. This would be much, much simpler if I first
-   // created an Image transpose function...
-
-   // 1) first whiten the whole image
-   typename TgtImageT::iterator tpos = tgt.begin();
-   typename TgtImageT::iterator tend = tgt.end();
-   for(;tpos != tend;++tpos) tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
-
-   // 2) blacken the histograms working from the bottom
-   unsigned height = tgt.rows();
-   hpos = histogram.begin();
-   //std::cout << "Histogram: ";
-   for(unsigned col = 0;hpos != hend;++hpos,++col) {
-      //std::cout << *hpos << " ";
-      for(unsigned r = *hpos;r > 0;--r) {
-         tgt.pixel(height - r,col).namedColor.gray = TgtImageT::pixel_type::traits::min();
-      }
-   }
-   //std::cout << std::endl;
+   drawHistogram(tgt,histogram);
 }
 
 template<typename SrcImageT,typename TgtImageT>
-void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned channel,
+void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,unsigned channel,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -122,36 +156,13 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned channel,
    utility::reportIfNotLessThan("channel < maxChannels",channel,(unsigned)SrcImageT::pixel_type::MAX_CHANNELS);
  
    // First compute Histogram
-   uint32_t maxColumnHeight = 0;
+   double maxColumnHeight = 0;
    HistogramT histogram(computeHistogram(src,TgtImageT::pixel_type::traits::max()+1u,channel,maxColumnHeight));
 
-   // Now we need to normalize the Histogram to the bounds of the rows dimension
-   typedef typename HistogramT::iterator HistogramIterator;
-   HistogramIterator hpos = histogram.begin();
-   const HistogramIterator hend = histogram.end();
-   float normScale = (float) tgt.rows() / maxColumnHeight;
-   for(;hpos != hend;++hpos) *hpos = static_cast<typename TgtImageT::pixel_type::value_type>(*hpos * normScale);
+   if(logBase < 2) normalizeHistogram(histogram,tgt.rows(),maxColumnHeight);
+   else logNormalizeHistogram(histogram,tgt.rows(),maxColumnHeight,logBase);
 
-   // Now we need to compose the histogram, which is a little tricky if done with iteration
-   // Instead, we'll simply use the pixel coordinates to paint. This would be much, much simpler if I first
-   // created an Image transpose function...
-
-   // 1) first whiten the whole image
-   typename TgtImageT::iterator tpos = tgt.begin();
-   typename TgtImageT::iterator tend = tgt.end();
-   for(;tpos != tend;++tpos) tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
-
-   // 2) blacken the histograms working from the bottom
-   unsigned height = tgt.rows();
-   hpos = histogram.begin();
-   //std::cout << "Histogram: ";
-   for(unsigned col = 0;hpos != hend;++hpos,++col) {
-      //std::cout << *hpos << " ";
-      for(unsigned r = *hpos;r > 0;--r) {
-         tgt.pixel(height - r,col).namedColor.gray = TgtImageT::pixel_type::traits::min();
-      }
-   }
-   //std::cout << std::endl;
+   drawHistogram(tgt,histogram);
 }
 
 
@@ -208,7 +219,6 @@ void histogramModify(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
 
-   // Algorithm
    float rescale = (float) TgtImageT::pixel_type::traits::max()/(high - low);
 
    for(;spos != send;++spos,++tpos) {
@@ -243,7 +253,6 @@ void histogramModifyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
 
-   // Algorithm
    double rescale = ((double) TgtImageT::pixel_type::traits::max() - 
                      (double) TgtImageT::pixel_type::traits::min()) /
                               (high - low);
@@ -275,7 +284,6 @@ void histogramModifyAnyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value 
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
 
-   // Algorithm
    double rescale = ((double) TgtImageT::pixel_type::traits::max() - 
                      (double) TgtImageT::pixel_type::traits::min()) /
                               (high - low);
@@ -304,12 +312,6 @@ void linearlyStretchChannel(HSIImage& hsiImage,Bounds minBounds,Bounds maxBounds
 
    typename HSIImage::pixel_type::value_type min = HSIImage::pixel_type::traits::min();
    typename HSIImage::pixel_type::value_type max = HSIImage::pixel_type::traits::max();
-
-   std::cout << "linearStretch[channel=" << channel << "]" 
-      << " low=" << low << " high=" << high
-      << " lowNorm=" << lowNorm << " highNorm=" << highNorm
-      << " minBounds=" << (unsigned) minBounds << " maxBounds=" << (unsigned) maxBounds
-      << " rescale=" << rescale << std::endl;
 
    typename HSIImage::iterator spos = hsiImage.begin();
    typename HSIImage::iterator send = hsiImage.end();
@@ -460,7 +462,6 @@ void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
    typedef typename SrcImageT::pixel_type PixelT;
    typedef typename PixelT::value_type    ValueT;
 
-   //std::cout << "Searching for optimal threshold" << std::endl;
    // First compute the average as starting threshold
    typedef typename types::AccumulatorVariableSelect<typename SrcImageT::pixel_type>::type AccumulatorT;
    AccumulatorT accum = 0;
@@ -479,7 +480,6 @@ void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
    // Now create loop checking stop condition.
    // Note a ternary expression is used to ensure unsigned math is performed correctly.
    while((thresholdLast > threshold ? thresholdLast - threshold : threshold - thresholdLast) > thresholdCondition) {
-      //std::cout << "New threshold: " << (int) threshold << std::endl;
       // First save off thresholdLast
       thresholdLast = threshold;
       // Now compute new threshold
@@ -517,7 +517,8 @@ void otsuBinarize(const SrcImageT& src, TgtImageT& tgt,
               typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
    // First compute histogram:
-   uint32_t maxChannelHeight = 0u;
+   //uint32_t maxChannelHeight = 0u;
+   double maxChannelHeight = 0u;
    unsigned maxColor = SrcImageT::pixel_type::traits::max();
    HistogramT histogram(computeHistogram(src,maxColor + 1u,SrcImageT::pixel_type::GRAY_CHANNEL,maxChannelHeight));
 
@@ -535,8 +536,8 @@ void otsuBinarize(const SrcImageT& src, TgtImageT& tgt,
 
    // Initialize accumulator of u2 and w2
    for(unsigned t = 0;t < maxColor;++t) {
-      w2 += histogram[t];
-      u2 += histogram[t]*t;
+      w2 += (unsigned)histogram[t];
+      u2 += static_cast<AccumulatorT>(histogram[t]*t);
    }
    // Now compute means using incremental solution (much like a sliding average, except
    // copmuting average of subset by iterating histogram).
@@ -551,11 +552,8 @@ void otsuBinarize(const SrcImageT& src, TgtImageT& tgt,
       // Need to protect the divide by zero pathological case, which is why the ternary expresions.
       double meanDiff = ((double)u1/(w1 > 0 ? w1 : 1) - (double)u2/(w2 > 0 ? w2 : 1));
       double sigma = (double)w1/size*(double)w2/size*meanDiff*meanDiff;
-      //std::cout << "sigma(t) = " << sigma << "(" << t+1 << ")" << std::endl;
       if(sigma > maxSigma) maxSigma = sigma, maxThreshold = t+1;
    }
-
-   //std::cout << "Otsu threshold(sigma)=" << maxThreshold << "(" << maxSigma << ")" << std::endl;
 
    // Now do the actual binarization based on threshold.
    typename SrcImageT::const_iterator spos = src.begin();

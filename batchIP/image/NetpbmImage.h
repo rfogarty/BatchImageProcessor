@@ -45,7 +45,7 @@ types::Image<PixelT> readPPMFile(const std::string& filename) {
    pgm_file.open(filename.c_str(), std::ios_base::in | std::ios_base::binary);
    if (!pgm_file.is_open()) {
       std::stringstream ss;
-      ss << "Filename \"" << filename << "\" could not be opened correctly";
+      ss << "Filename \"" << filename << "\" could not be read. Check path or permissions.";
       throw std::invalid_argument(ss.str().c_str());
    }
 
@@ -80,7 +80,7 @@ types::Image<PixelT> readPGMFile(const std::string& filename) {
    pgm_file.open(filename.c_str(), std::ios_base::in | std::ios_base::binary);
    if (!pgm_file.is_open()) {
       std::stringstream ss;
-      ss << "Filename \"" << filename << "\" could not be written. Check path or permissions.";
+      ss << "Filename \"" << filename << "\" could not be read. Check path or permissions.";
       throw std::invalid_argument(ss.str().c_str());
    }
 

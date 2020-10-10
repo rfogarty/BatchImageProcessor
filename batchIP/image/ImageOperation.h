@@ -29,7 +29,7 @@ private:
       // on entire image
       if(0 == mRegions.size()) {
          // Call default RegionOfInterest (the whole image); algo uses the default parameters.
-         mAction->run(src,tgt,view2roi(src.defaultView()));
+         mAction->run(src,tgt);
       }
       // O.w. iterate all of the given regions
       else {

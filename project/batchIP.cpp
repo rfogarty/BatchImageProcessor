@@ -160,6 +160,7 @@ void parseAndRunOperation(const std::string& line) {
       typedef types::Image<PixelT> ImageT;
       try {
          if     (operation == "add")           process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
+         else if(operation == "crop")          process(inputfile,outputfile,operation,line,ss,Crop<ImageT>::make(ss));
          else if(operation == "hist")          process(inputfile,outputfile,operation,line,ss,Histogram<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModify<ImageT>::make(ss));
          else if(operation == "scale")         process(inputfile,outputfile,operation,line,ss,Scale<ImageT>::make(ss));
@@ -188,6 +189,7 @@ void parseAndRunOperation(const std::string& line) {
 
       try {
          if     (operation == "add")           process(inputfile,outputfile,operation,line,ss,Intensity<ImageT>::make(ss));
+         else if(operation == "crop")          process(inputfile,outputfile,operation,line,ss,Crop<ImageT>::make(ss));
          else if(operation == "binarizeColor") process(inputfile,outputfile,operation,line,ss,BinarizeColor<ImageT>::make(ss));
          else if(operation == "histChan")      process(inputfile,outputfile,operation,line,ss,HistogramChannel<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModifyRGB<ImageT>::make(ss));

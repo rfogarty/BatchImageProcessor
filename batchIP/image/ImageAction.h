@@ -23,12 +23,13 @@ enum ActionType {
    INTENSITY,
    BINARIZE,
    BINARIZE_DT,
+   CROP,
    SCALE,
    HISTOGRAM,
    HISTOGRAM_MOD,
-   UNIFORM_SMOOTH,
    SELECT_COLOR,
-   SELECT_HSI
+   SELECT_HSI,
+   UNIFORM_SMOOTH
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -49,7 +50,7 @@ public:
 
    virtual unsigned numParameters() const = 0;
 
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi) const = 0;
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const = 0;
    
    virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,
                     const types::ParameterPack& parameters) const = 0;

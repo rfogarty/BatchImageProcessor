@@ -32,8 +32,7 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   // Note: RegionOfInterest is ignored.
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
+   virtual void run(const ImageT& src,ImageT& tgt) const {
       algorithm::scale(src,tgt,mAmount);
    }
 
@@ -46,6 +45,45 @@ public:
       return new Scale<ImageT>(amount);
    }
 };
+
+
+template<typename ImageT>
+class Crop : public Action<ImageT> {
+public:
+   typedef Crop<ImageT> ThisT;
+
+private:
+   types::RegionOfInterest mROI;
+
+   enum { NUM_PARAMETERS = 4 };
+
+public:
+   Crop(const types::RegionOfInterest& roi) : mROI(roi) {}
+
+   virtual ~Crop() {}
+
+   virtual ActionType type() const { return CROP; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      tgt = roi2view(src,mROI);
+   }
+
+   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
+      utility::fail("scale function does not support regions");
+   }
+
+   static Crop* make(std::istream& ins) {
+      types::RegionOfInterest roi;
+      roi.mRowBegin = utility::parseWord<unsigned>(ins);
+      roi.mColBegin = utility::parseWord<unsigned>(ins);
+      roi.mRows = utility::parseWord<unsigned>(ins);
+      roi.mCols = utility::parseWord<unsigned>(ins);
+      return new Crop<ImageT>(roi);
+   }
+};
+
 
 
 template<typename ImageT>
@@ -72,8 +110,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mAmount);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mAmount);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -89,49 +127,49 @@ public:
 };
 
 
-#define HISTACTION(NAME,CALL)                                                                                            \
-template<typename ImageT>                                                                                                \
-class NAME : public Action<ImageT> {                                                                                     \
-public:                                                                                                                  \
-   typedef NAME<ImageT> ThisT;                                                                                           \
-private:                                                                                                                 \
-   unsigned mLow;                                                                                                        \
-   unsigned mHigh;                                                                                                       \
-                                                                                                                         \
-   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned low, unsigned high) const {        \
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);                                                    \
-      algorithm::CALL(types::roi2view(src,roi),tgtview,low,high);                                                        \
-   }                                                                                                                     \
-                                                                                                                         \
-   enum { NUM_PARAMETERS = 2 };                                                                                          \
-                                                                                                                         \
-public:                                                                                                                  \
-   NAME(unsigned low,unsigned high) : mLow(low), mHigh(high) {}                                                          \
-                                                                                                                         \
-   virtual ~NAME() {}                                                                                                    \
-                                                                                                                         \
-   virtual ActionType type() const { return HISTOGRAM_MOD; }                                                             \
-                                                                                                                         \
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                     \
-                                                                                                                         \
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {                            \
-      run(src,tgt,roi,mLow,mHigh);                                                                                       \
-   }                                                                                                                     \
-                                                                                                                         \
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,                                    \
-                                                  const types::ParameterPack& parameters) const {                        \
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());               \
-      unsigned low = utility::parseWord<unsigned>(parameters[0]);                                                        \
-      unsigned high = utility::parseWord<unsigned>(parameters[1]);                                                       \
-      run(src,tgt,roi,low,high);                                                                                         \
-   }                                                                                                                     \
-                                                                                                                         \
-   static NAME* make(std::istream& ins) {                                                                                \
-      unsigned low = utility::parseWord<unsigned>(ins);                                                                  \
-      unsigned high = utility::parseWord<unsigned>(ins);                                                                 \
-      return new NAME<ImageT>(low,high);                                                                                 \
-   }                                                                                                                     \
-};                                                                                                                       \
+#define HISTACTION(NAME,CALL)                                                                                      \
+template<typename ImageT>                                                                                          \
+class NAME : public Action<ImageT> {                                                                               \
+public:                                                                                                            \
+   typedef NAME<ImageT> ThisT;                                                                                     \
+private:                                                                                                           \
+   unsigned mLow;                                                                                                  \
+   unsigned mHigh;                                                                                                 \
+                                                                                                                   \
+   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned low, unsigned high) const {  \
+      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);                                              \
+      algorithm::CALL(types::roi2view(src,roi),tgtview,low,high);                                                  \
+   }                                                                                                               \
+                                                                                                                   \
+   enum { NUM_PARAMETERS = 2 };                                                                                    \
+                                                                                                                   \
+public:                                                                                                            \
+   NAME(unsigned low,unsigned high) : mLow(low), mHigh(high) {}                                                    \
+                                                                                                                   \
+   virtual ~NAME() {}                                                                                              \
+                                                                                                                   \
+   virtual ActionType type() const { return HISTOGRAM_MOD; }                                                       \
+                                                                                                                   \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                               \
+                                                                                                                   \
+   virtual void run(const ImageT& src,ImageT& tgt) const {                                                         \
+      run(src,tgt,view2roi(src.defaultView()),mLow,mHigh);                                                         \
+   }                                                                                                               \
+                                                                                                                   \
+   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,                              \
+                                                  const types::ParameterPack& parameters) const {                  \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());         \
+      unsigned low = utility::parseWord<unsigned>(parameters[0]);                                                  \
+      unsigned high = utility::parseWord<unsigned>(parameters[1]);                                                 \
+      run(src,tgt,roi,low,high);                                                                                   \
+   }                                                                                                               \
+                                                                                                                   \
+   static NAME* make(std::istream& ins) {                                                                          \
+      unsigned low = utility::parseWord<unsigned>(ins);                                                            \
+      unsigned high = utility::parseWord<unsigned>(ins);                                                           \
+      return new NAME<ImageT>(low,high);                                                                           \
+   }                                                                                                               \
+};                                                                                                                 \
 /* End of Macro HISTACTION */
 
 HISTACTION(HistogramModify,histogramModify)
@@ -171,8 +209,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mLow,mHigh,mChannel);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mLow,mHigh,mChannel);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -230,8 +268,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mLowI,mHighI,mLowS,mHighS,mLowH,mHighH);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mLowI,mHighI,mLowS,mHighS,mLowH,mHighH);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -264,14 +302,17 @@ public:
 
 private:
 
-   void runHist(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      algorithm::histogram(types::roi2view(src,roi),tgt);
+   unsigned mLogBase;
+   mutable bool mRunOnce;
+
+   void runHist(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned logBase) const {
+      algorithm::histogram(types::roi2view(src,roi),tgt,logBase);
    }
 
-   enum { NUM_PARAMETERS = 0 };
+   enum { NUM_PARAMETERS = 1 };
 
 public:
-   Histogram() {}
+   Histogram(unsigned logBase) : mLogBase(logBase) {}
 
    virtual ~Histogram() {}
 
@@ -279,17 +320,25 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      runHist(src,tgt,roi);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      runHist(src,tgt,view2roi(src.defaultView()),mLogBase);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      runHist(src,tgt,roi);
+      if(!mRunOnce) {
+         mRunOnce = true;
+         utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+         unsigned logBase = utility::parseWord<unsigned>(parameters[0]);
+         runHist(src,tgt,roi,logBase);
+      }
+      else {
+         utility::fail("Histogram (hist) supports only one ROI (call multiple times or use crop first)!");
+      }
    }
 
    static Histogram* make(std::istream& ins) {
-      return new Histogram<ImageT>();
+      unsigned logBase = utility::parseWord<unsigned>(ins);
+      return new Histogram<ImageT>(logBase);
    }
 };
 
@@ -301,16 +350,18 @@ public:
 
 private:
 
+   unsigned mLogBase;
    unsigned mChannel;
+   mutable bool mRunOnce;
 
-   void runHist(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned channel) const {
-      algorithm::histogram(types::roi2view(src,roi),tgt,channel);
+   void runHist(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned logBase,unsigned channel) const {
+      algorithm::histogram(types::roi2view(src,roi),tgt,logBase,channel);
    }
 
-   enum { NUM_PARAMETERS = 0 };
+   enum { NUM_PARAMETERS = 2 };
 
 public:
-   HistogramChannel(unsigned channel) : mChannel(channel) {}
+   HistogramChannel(unsigned logBase,unsigned channel) : mLogBase(logBase),mChannel(channel), mRunOnce(false) {}
 
    virtual ~HistogramChannel() {}
 
@@ -318,19 +369,27 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi) const {
-      runHist(src,tgt,roi,mChannel);
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {
+      runHist(src,tgt,view2roi(src.defaultView()),mLogBase,mChannel);
    }
 
    virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      unsigned channel = utility::parseWord<unsigned>(parameters[0]);
-      runHist(src,tgt,roi,channel);
+      if(!mRunOnce) {
+         mRunOnce = true;
+         utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+         unsigned logBase = utility::parseWord<unsigned>(parameters[0]);
+         unsigned channel = utility::parseWord<unsigned>(parameters[1]);
+         runHist(src,tgt,roi,logBase,channel);
+      }
+      else {
+         utility::fail("Histogram (histChan) supports only one ROI (call multiple times or use crop first)!");
+      }
    }
 
    static HistogramChannel* make(std::istream& ins) {
+      unsigned logBase = utility::parseWord<unsigned>(ins);
       unsigned channel = utility::parseWord<unsigned>(ins);
-      return new HistogramChannel<ImageSrc,ImageTgt>(channel);
+      return new HistogramChannel<ImageSrc,ImageTgt>(logBase,channel);
    }
 };
 
@@ -359,8 +418,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mThreshold);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mThreshold);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -399,8 +458,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      runPr(src,tgt,roi);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      runPr(src,tgt,view2roi(src.defaultView()));
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -437,8 +496,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      runPr(src,tgt,roi);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      runPr(src,tgt,view2roi(src.defaultView()));
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -481,8 +540,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mThresholdLow,mThresholdHigh);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mThresholdLow,mThresholdHigh);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -527,8 +586,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mThreshold,mReferenceColor);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mThreshold,mReferenceColor);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -578,8 +637,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mChannel);
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mChannel);
    }
 
    virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -621,8 +680,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mChannel);
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mChannel);
    }
 
    virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -665,8 +724,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mValue,mChannel);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mValue,mChannel);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -679,7 +738,6 @@ public:
    static AfixAnyHSI* make(std::istream& ins) {
       uint8_t value = (uint8_t)utility::parseWord<unsigned>(ins);
       unsigned channel = utility::parseWord<unsigned>(ins);
-      std::cout << "AfixAnyHSI::make value=" << (unsigned) value << " channel=" << channel << std::endl;
       return new AfixAnyHSI<ImageT>(value,channel);
    }
 };
@@ -710,8 +768,8 @@ public:
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      run(src,tgt,roi,mWindowSize);
+   virtual void run(const ImageT& src,ImageT& tgt) const {
+      run(src,tgt,view2roi(src.defaultView()),mWindowSize);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
