@@ -1,5 +1,6 @@
 Future TODOs
 ===============
+General
 DONE * Should have conversion functions between image and pixel types.
 ** For converting between image types, there are really 3 things to consider:
    1) Channel bitdepth or resolution
@@ -7,6 +8,31 @@ DONE * Should have conversion functions between image and pixel types.
    3) Actual image format, which is really a separate issue and should be resolved in the writing functions
 DONE * Test with AddressSanitizer to ensure absolutely no bad memory accesses
 DONE * Test with Valgrind to ensure no memory leaks or bad array indexing - see results below.
+* Create Parametric Pixel type (records position, x,y) - can be used for complex mask, e.g.
+
+
+HW#3
+
+Edge Detection [5 points]
+* Add edge detection for grey level images to your choice of options.
+* Use Sobel operator (3x3) and (5x5) to compute dx and dy, compute gradient amplitude, compute edge direction
+* Your program should
+ ** operate within specified ROIs (up to three ROIs as in previous assignments)
+ ** generate display of the amplitude of the gradient operator as intensity image
+ ** generate binary edge image derived from amplitude of the gradient operator by thresholding.
+ ** generate binary edge image by further thresholding the above output using direction information,
+    e.g. display only horizontal (0 degrees +/- 10 degree) or (45 degrees +/- 10 degree) edges etc.
+* Utilization of OpenCV [5 points]
+ ** replicate first part of this assignment (Sobel) using OpenCV calls and compare performance
+ ** utilize Canny module of OpenCV and compare to Sobel results
+ ** implement histogram equalization using OpenCV and compare to your histogram stretching implementation
+ ** implement Otsu algorithm using OpenCV and compare to your implementation of fixed thresholding.
+ ** Combine operations by applying histogram equalization only to foreground as determined by Otsu.
+* Advanced Operations [2 points – extra credit]
+ ** Implement QR code detection and decoding (see TA instructions)
+ ** Get some QR images using your cell camera under varying light conditions and test your implementation.
+ ** Process your images using histogram equalization prior QR reading, does it help, describe the results
+
 
 HW#2
 
@@ -18,7 +44,7 @@ DONE  * Stretching is defined by user provided intensity range parameters (a, b)
 DONE    ** Your program should apply the procedure within ROI (up to three ROI as Hw1)
 DONE    ** Generate image of the histograms for the ROI before and after the procedure, this is good for debugging
        and illustrations
-  * Test your program on some grey level images.
+DONE  * Test your program on some grey level images.
 
 2.Color Processing [5 points]
 
@@ -26,9 +52,9 @@ DONE    ** Generate image of the histograms for the ROI before and after the pro
 DONE  * Apply the histogram stretching to R,G,B components independently, then combine in one color image,
     experiment and discuss results
 DONE  * Implement RGB to HSI conversion
-  * Apply intensity histogram stretching by applying it to the I-component, display I as grey level image, then
+DONE  * Apply intensity histogram stretching by applying it to the I-component, display I as grey level image, then
     convert back to RGB for display. Compare utilization of RGB vs HSI for histogram stretching.
-  * [extra credit - 1 point] Perform histogram stretching on both I and S components. How about including all three
+DONE  * [extra credit - 1 point] Perform histogram stretching on both I and S components. How about including all three
     I, S and H components? Experiment.
 
 3. Make sure that you have complete report for this assignment (not just few comments).
