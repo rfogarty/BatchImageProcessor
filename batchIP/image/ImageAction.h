@@ -29,7 +29,8 @@ enum ActionType {
    HISTOGRAM_MOD,
    SELECT_COLOR,
    SELECT_HSI,
-   UNIFORM_SMOOTH
+   UNIFORM_SMOOTH,
+   EDGE // TODO: possibly support family of edge algorithms
 };
 
 ///////////////////////////////////////////////////////////////////////////////

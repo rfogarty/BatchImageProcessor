@@ -784,6 +784,61 @@ public:
    }
 };
 
+
+#define EDGE_ACTION(NAME,ALGO)                                                                                                                        \
+template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >                      \
+class NAME : public Action<ImageSrc,ImageTgt> {                                                                                                       \
+public:                                                                                                                                               \
+   typedef Action<ImageSrc,ImageTgt> SuperT;                                                                                                          \
+   typedef NAME<ImageSrc,ImageTgt> ThisT;                                                                                                             \
+   typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
+                                                                                                                                                      \
+private:                                                                                                                                              \
+   unsigned mChannel;                                                                                                                                 \
+   unsigned mKernelType; /* TODO: should this use the enum? */                                                                                        \
+   unsigned mWindowSize;                                                                                                                              \
+                                                                                                                                                      \
+   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned channel,unsigned kernelType,unsigned windowSize) const {    \
+      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
+      algorithm::ALGO(types::roi2view(src,roi),tgtview,(algorithm::edge::Kernel)kernelType,windowSize,channel);                                                                \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   enum { NUM_PARAMETERS = 3 };                                                                                                                       \
+                                                                                                                                                      \
+public:                                                                                                                                               \
+   NAME(unsigned channel,unsigned kernel,unsigned windowSize) : mChannel(channel),mKernelType(kernel), mWindowSize(windowSize) {}                     \
+                                                                                                                                                      \
+   virtual ~NAME() {}                                                                                                                                 \
+                                                                                                                                                      \
+   virtual ActionType type() const { return EDGE; }                                                                                                   \
+                                                                                                                                                      \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
+      run(src,tgt,view2roi(src.defaultView()),mChannel,mKernelType,mWindowSize);                                                                      \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
+      unsigned channel = utility::parseWord<unsigned>(parameters[0]);                                                                                 \
+      unsigned kernel = utility::parseWord<unsigned>(parameters[0]);                                                                                  \
+      unsigned windowSize = utility::parseWord<unsigned>(parameters[0]);                                                                              \
+      run(src,tgt,roi,channel,kernel,windowSize);                                                                                                     \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   static NAME* make(std::istream& ins) {                                                                                                             \
+      unsigned channel = utility::parseWord<unsigned>(ins);                                                                                           \
+      unsigned kernel = utility::parseWord<unsigned>(ins);                                                                                            \
+      unsigned windowSize = utility::parseWord<unsigned>(ins);                                                                                        \
+      return new NAME<ImageSrc,ImageTgt>(channel,kernel,windowSize);                                                                                  \
+   }                                                                                                                                                  \
+};                                                                                                                                                    \
+/* End of EDGE_ACTION */
+
+EDGE_ACTION(EdgeGradient,edgeGradient)
+EDGE_ACTION(EdgeDetect,edgeDetect)
+
+
 } // namespace operation
 } // namespace batchIP
 

@@ -3,6 +3,7 @@
 #include "Image.h"
 #include "Pixel.h"
 #include "utility/Error.h"
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 
@@ -129,7 +130,8 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,
          // point? It still participates in SFINAE to help select that this is an appropriate    
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
-         typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+         typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value ||
+                                 types::is_monochrome<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
    utility::reportIfNotEqual("cols!=max",tgt.cols(),(unsigned)TgtImageT::pixel_type::traits::max()+1u);
  
@@ -457,7 +459,8 @@ void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
               // point? It still participates in SFINAE to help select that this is an appropriate    
               // matching function given its arguments. Note, SFINAE techniques are incompatible with 
               // deduction so can't be applied to in parameter directly.                              
-              typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+              typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value ||
+                                      types::is_monochrome<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
    typedef typename SrcImageT::pixel_type PixelT;
    typedef typename PixelT::value_type    ValueT;
@@ -490,8 +493,8 @@ void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
       unsigned numberBG = 0;
       unsigned numberFG = 0;
       for(;sposl != sendl;++sposl) {
-         if(sposl->namedColor.gray < threshold) accumBG += sposl->namedColor.gray,++numberBG;
-         else accumFG += sposl->namedColor.gray,++numberFG;
+         if(sposl->tuple.value0 < threshold) accumBG += sposl->tuple.value0,++numberBG;
+         else accumFG += sposl->tuple.value0,++numberFG;
       }
       // Now compute new threshold
       threshold = static_cast<ValueT>(((double)accumFG/numberFG + (double)accumBG/numberBG)/2);
@@ -501,8 +504,8 @@ void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
    spos = src.begin();
    typename TgtImageT::iterator tpos = tgt.begin();
    for(;spos != send;++spos,++tpos) {
-      if(spos->namedColor.gray < threshold) tpos->namedColor.gray = TgtImageT::pixel_type::traits::min();
-      else                                  tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
+      if(spos->namedColor.gray < threshold) tpos->tuple.value0 = TgtImageT::pixel_type::traits::min();
+      else                                  tpos->tuple.value0 = TgtImageT::pixel_type::traits::max();
    }
 }
 
@@ -514,7 +517,8 @@ void otsuBinarize(const SrcImageT& src, TgtImageT& tgt,
               // point? It still participates in SFINAE to help select that this is an appropriate    
               // matching function given its arguments. Note, SFINAE techniques are incompatible with 
               // deduction so can't be applied to in parameter directly.                              
-              typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
+              typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value ||
+                                      types::is_monochrome<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
    // First compute histogram:
    //uint32_t maxChannelHeight = 0u;
@@ -560,8 +564,8 @@ void otsuBinarize(const SrcImageT& src, TgtImageT& tgt,
    typename SrcImageT::const_iterator send = src.end();
    typename TgtImageT::iterator tpos = tgt.begin();
    for(;spos != send;++spos,++tpos) {
-      if(spos->namedColor.gray < maxThreshold) tpos->namedColor.gray = TgtImageT::pixel_type::traits::min();
-      else                                     tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
+      if(spos->tuple.value0 < maxThreshold) tpos->tuple.value0 = TgtImageT::pixel_type::traits::min();
+      else                                  tpos->tuple.value0 = TgtImageT::pixel_type::traits::max();
    }
 }
 
@@ -781,11 +785,11 @@ public:
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
 void uniformSmooth(const SrcImageT& src, TgtImageT& tgt,unsigned windowSize,
-         // This ugly bit is an unnamed argument with a default which means it neither           
-         // contributes to the mangled declaration name nor requires an argument. So what is the 
-         // point? It still participates in SFINAE to help select that this is an appropriate    
-         // matching function given its arguments. Note, SFINAE techniques are incompatible with 
-         // deduction so can't be applied to in parameter directly.                              
+         // This ugly bit is an unnamed argument with a default which means it neither
+         // contributes to the mangled declaration name nor requires an argument. So what is the
+         // point? It still participates in SFINAE to help select that this is an appropriate
+         // matching function given its arguments. Note, SFINAE techniques are incompatible with
+         // deduction so can't be applied to in parameter directly.
          typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
    utility::reportIfNotLessThan("windowSize",2u,windowSize);
@@ -884,6 +888,367 @@ void scale(const SrcImageT& src, TgtImageT& tgt, float ratio,
       }
    }
 }
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Experimental
+
+/*-----------------------------------------------------------------------**/
+// Idea of this function is to create a straight forward convolution function
+// using a sliding window. Later methods will attempt to create the convolution
+// function via Fourier Transform (in particular FFT) based convolution.
+//
+// To be generic this function will convolve one image with another image, whereby
+// the first image is the source and the second image is the kernel
+//
+// Note: output target will be smaller than input source by the kernel parameters: (M-1)x(N-1)
+template<typename SrcImageT,typename KernelT,typename TgtImageT>
+void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned windowSize,unsigned channel) {
+
+   utility::reportIfNotLessThan("kernel.rows() < src.rows()",kernel.rows(),src.rows()+1);
+   utility::reportIfNotLessThan("kernel.cols() < src.cols()",kernel.cols(),src.cols()+1);
+   utility::reportIfNotEqual("src.rows()-kernel.rows()+1 != tgt.rows()",src.rows()-kernel.rows()+1,tgt.rows());
+   utility::reportIfNotEqual("src.cols()-kernel.cols()+1 != tgt.cols()",src.cols()-kernel.cols()+1,tgt.cols());
+   // Finally, this version of the software is only compatible with odd window sizes.
+   utility::reportIfNotLessThan("kernel.rows() must be odd",kernel.rows()>>1<<1,kernel.rows());
+   utility::reportIfNotLessThan("kernel.cols() must be odd",kernel.cols()>>1<<1,kernel.cols());
+
+
+   unsigned kernelRows = kernel.rows();
+   unsigned kernelCols = kernel.cols();
+   // Note kernel windows should be odd sized, so in a symmetric window sense, these are half windows
+   unsigned kernelHalfRows = kernelRows>>1;
+   unsigned kernelHalfCols = kernelCols>>1;
+
+
+   typedef typename SrcImageT::image_view SrcViewT;
+   // Now we iterate the number of rows and columns in the target.
+   //    i, j are iterating the O(N^2) pixels; m,n are iterating the MxN window at each pixel.
+   //    Unfortunately as seen by the number of loops. This algorithm is approximately O(N^4) for
+   //    large kernel windows (which is really expensive). TODO: figure out if there is a way to streamline
+   //    this solution. For example, the Sobel windows are symmetric, meaning that for a naive solution we
+   //    will be doing at least twice as much work as is needed (a simple solution may exist for the 3x3 windows,
+   //    but a 5x5 Sobel might be a bit more complicated.) Although, this may be all moot, if we instead implement
+   //    convolution in the Fourier domain later (which should drastically shrink the convolution complexity).
+   for(unsigned i = 0; i < tgt.rows(); ++i) {
+      SrcViewT sview = src.view(kernelRows,kernelCols,kernelHalfRows+i,kernelHalfCols);
+      for(unsigned j = 0; j < tgt.cols(); ++j,sview.shiftCol()) {
+         tgt.pixel(i,j).tuple.value0 = static_cast<typename TgtImageT::pixel_type::value_type>(0);
+         for(unsigned m = 0; m < kernelRows; ++m) {
+            for(unsigned n = 0; n < kernelCols; ++n) {
+               // TODO:  How do I want to treat kernel matrix data?
+               // I am assuming a lot below: Target is monochrome, kernel is monochrome (probably both assumuptions
+               // are good ones). And lastly, Source is any Pixel type, so we pass channel to determine what coordinate
+               // of data we are operating on (most likely channel 2 of HSI or intensity if color, or if source is Grayscale
+               // channel 0).
+               // TODO: do I have to worry about scaling the output? as the following does not currently account
+               // for scaling input and output if min/max are different ranges.
+               // TODO: also does the kernel need to be normalized?
+               tgt.pixel(i,j).tuple.value0 += sview.pixel(m,n).indexedColor[channel] * kernel.pixel(m,n).namedColor.mono;
+            }
+         }
+      } 
+   }
+}
+
+// Function predicates that can be used in std::transform and other expressions
+namespace predicate {
+
+   // Operators to use in std::transform
+   template<typename T>
+   struct Magnitude { T operator()(T x,T y) { return std::sqrt(x.tuple.value0*x.tuple.value0 + y.tuple.value0*y.tuple.value0); } };
+   
+   template<typename T>
+   struct Direction { T operator()(T x,T y) { return std::atan2(y.tuple.value0,x.tuple.value0); } };
+   
+   // This "Quadrant 1" direction folds the azimuth between (0,pi/2) so that
+   // easy threshold tests can determine if edge is horizontal(N/S) or vertical (E/W)
+   // Note: since we are losing information this isn't appropriate to find 
+   // NW versus NE diagonal directions (as they are folded on top of one another).
+   // Nor can this type of direction discrimate between N&S or E&W.
+   template<typename T>
+   struct Q1Direction { T operator()(T x,T y) { return std::abs(atan(y.tuple.value0/x.tuple.value0)); } };
+   
+   template<typename T>
+   struct Select { T operator()(T v, T s) { return s.tuple.value0 > 0.5 ? v.tuple.value0 : 0; } };
+   
+   template<typename T>
+   struct IsLessThan {
+      T threshold;
+      T operator()(T v) { return v.tuple.value0 < threshold ? 1 : 0; }
+   };
+   
+   template<typename T>
+   struct IsGreaterThan {
+      T threshold;
+      T operator()(T v) { return v.tuple.value0 > threshold ? 1 : 0; }
+   };
+   
+   template<typename T>
+   struct IsBetween {
+      T thresholdLow;
+      T thresholdHigh;
+      T operator()(T v) { return (thresholdLow < v.tuple.value0 && v.tuple.value0 <= thresholdHigh) ? 1 : 0; }
+   };
+
+} // namespace predicate
+
+namespace edge {
+
+   enum Kernel {
+      UNKNOWN_KERNEL = 0,
+      AVERAGE_1x2,
+      AVERAGE_2x2,
+      CENTRAL_DIFF,
+      KIRSCH,
+      PREWTT,
+      ROBERTS, /* aka Diagonal Difference */
+      SOBEL,
+      NUM_KERNEL_TYPES = SOBEL
+   };
+   
+   template<typename KernelT>
+   void sobel3(KernelT& kernelX,KernelT& kernelY) {
+      kernelX.resize(3,3);
+      kernelX.pixel(0,0).tuple.value0 = -1.0f;
+      kernelX.pixel(0,2).tuple.value0 = 1.0f;
+      kernelX.pixel(1,0).tuple.value0 = -2.0f;
+      kernelX.pixel(1,2).tuple.value0 = 2.0f;
+      kernelX.pixel(2,0).tuple.value0 = -1.0f;
+      kernelX.pixel(2,2).tuple.value0 = 1.0f;
+      kernelY.resize(3,3);
+      kernelY.pixel(0,0).tuple.value0 = 1.0f;
+      kernelY.pixel(0,1).tuple.value0 = 2.0f;
+      kernelY.pixel(0,2).tuple.value0 = 1.0f;
+      kernelY.pixel(2,0).tuple.value0 = -1.0f;
+      kernelY.pixel(2,1).tuple.value0 = -2.0f;
+      kernelY.pixel(2,2).tuple.value0 = -1.0f;
+   }
+   
+   template<typename KernelT>
+   void sobel5(KernelT& kernelX,KernelT& kernelY) {
+      kernelX.resize(5,5);
+      kernelX.pixel(0,0).tuple.value0 = -4.0f;
+      kernelX.pixel(0,1).tuple.value0 = -5.0f;
+      kernelX.pixel(0,3).tuple.value0 = 5.0f;
+      kernelX.pixel(0,4).tuple.value0 = 4.0f;
+   
+      kernelX.pixel(1,0).tuple.value0 = -8.0f;
+      kernelX.pixel(1,1).tuple.value0 = -10.0f;
+      kernelX.pixel(1,3).tuple.value0 = 10.0f;
+      kernelX.pixel(1,4).tuple.value0 = 8.0f;
+   
+      kernelX.pixel(2,0).tuple.value0 = -10.0f;
+      kernelX.pixel(2,1).tuple.value0 = -20.0f;
+      kernelX.pixel(2,3).tuple.value0 = 20.0f;
+      kernelX.pixel(2,4).tuple.value0 = 10.0f;
+   
+      kernelX.pixel(3,0).tuple.value0 = -8.0f;
+      kernelX.pixel(3,1).tuple.value0 = -10.0f;
+      kernelX.pixel(3,3).tuple.value0 = 10.0f;
+      kernelX.pixel(3,4).tuple.value0 = 8.0f;
+   
+      kernelX.pixel(4,0).tuple.value0 = -4.0f;
+      kernelX.pixel(4,1).tuple.value0 = -5.0f;
+      kernelX.pixel(4,3).tuple.value0 = 5.0f;
+      kernelX.pixel(4,4).tuple.value0 = 4.0f;
+   
+      kernelY.resize(5,5);
+      kernelY.pixel(0,0).tuple.value0 = 4.0f;
+      kernelY.pixel(0,1).tuple.value0 = 8.0f;
+      kernelY.pixel(0,2).tuple.value0 = 10.0f;
+      kernelY.pixel(0,3).tuple.value0 = 8.0f;
+      kernelY.pixel(0,4).tuple.value0 = 4.0f;
+   
+      kernelY.pixel(1,0).tuple.value0 = 5.0f;
+      kernelY.pixel(1,1).tuple.value0 = 10.0f;
+      kernelY.pixel(1,2).tuple.value0 = 20.0f;
+      kernelY.pixel(1,3).tuple.value0 = 10.0f;
+      kernelY.pixel(1,4).tuple.value0 = 5.0f;
+   
+      kernelY.pixel(3,0).tuple.value0 = -5.0f;
+      kernelY.pixel(3,1).tuple.value0 = -10.0f;
+      kernelY.pixel(3,2).tuple.value0 = -20.0f;
+      kernelY.pixel(3,3).tuple.value0 = -10.0f;
+      kernelY.pixel(3,4).tuple.value0 = -5.0f;
+   
+      kernelY.pixel(4,0).tuple.value0 = -4.0f;
+      kernelY.pixel(4,1).tuple.value0 = -8.0f;
+      kernelY.pixel(4,2).tuple.value0 = -10.0f;
+      kernelY.pixel(4,3).tuple.value0 = -8.0f;
+      kernelY.pixel(4,4).tuple.value0 = -4.0f;
+   }
+} // namespace edge
+
+
+template<typename GradientT,typename SrcImageT,typename KernelT>
+GradientT gradientPartial(const SrcImageT src,const KernelT& kernel,unsigned windowSize,unsigned channel) {
+
+   unsigned halfWindowSize = windowSize >> 1;
+   unsigned windowSizeEven = halfWindowSize << 1;
+
+   // Compute gradient by convolving with kernel
+   typedef typename GradientT::image_view GradientViewT;
+   GradientT gradient(src.rows(),src.cols());
+   GradientViewT gradientView(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven,halfWindowSize,halfWindowSize));
+   convolve(src,kernel,gradientView,windowSize,channel);
+   return gradient;
+}
+
+// This function isn't doing much...
+template<typename GradientT>
+GradientT gradientMagnitude(const GradientT& gradientX,const GradientT& gradientY) {
+   typedef typename GradientT::pixel_type PixelT;
+   // Compute gradient magnitude - sqrt of sum of the dx,dy squares
+   GradientT gradient(gradientX.rows(),gradientX.cols());
+   std::transform(gradientX.begin(),gradientX.end(),gradientY.begin(),gradient.begin(),predicate::Magnitude<PixelT>());
+   return gradient;
+}
+
+template<typename SrcImageT,typename KernelT,typename TgtImageT>
+void edgeGradient(const SrcImageT src,const KernelT& kernelX,const KernelT& kernelY,TgtImageT& tgt,unsigned windowSize,unsigned channel) {
+
+   typedef typename KernelT::pixel_type::value_type PrecisionT;
+   typedef types::Image<types::MonochromePixel<PrecisionT> > GradientT;
+
+   GradientT gradientX(gradientPartial<GradientT>(src,kernelX,windowSize,channel));
+   
+   GradientT gradientY(gradientPartial<GradientT>(src,kernelY,windowSize,channel));
+   
+   tgt = gradientMagnitude(gradientX,gradientY);
+}
+
+template<typename SrcImageT,typename KernelT,typename TgtImageT>
+void edgeDetect(const SrcImageT src,const KernelT& kernelX,const KernelT& kernelY,TgtImageT& tgt,unsigned windowSize,unsigned channel) {
+
+   typedef typename KernelT::pixel_type::value_type PrecisionT;
+   typedef types::Image<types::MonochromePixel<PrecisionT> > GradientT;
+
+   GradientT gradientM(src.rows(),src.cols());
+   edgeGradient(src,kernelX,kernelY,gradientM,windowSize,channel);
+
+   // TODO: might be nice to select the type of thresholding, we'd like to perform
+   // the more and more I write this stuff, the more and more that I want to be
+   // able to support a call graph
+   otsuBinarize(gradientM,tgt);
+}
+
+
+
+//template<typename SrcImageT,typename TgtImageT,typename KernelT>
+//void edgeDetector(const SrcImageT src,const KernelT& kernelX,const KernelT& kernelY,
+//                  TgtImageT& tgt,unsigned windowSize) {
+//
+//   typedef typename KernelT::pixel_type::value_Type PrecisionT;
+//   typedef MonochromePixel<PrecisionT> MonoPixelT;
+//   typedef Image<MonoPixelT> GradientXYT;
+//   typedef typename GradientT::view_type GradientXYViewT;
+//
+//   unsigned halfWindowSize = windowSize >> 1;
+//   unsigned windowSizeEven = halfWindowSize << 1;
+//
+//   // 1) Compute dy with kernelY N/S gradient
+//   GradientXYT y(src.rows(),src.cols());
+//   GradientXYViewT yv(y.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
+//   convolve(src,kernelY,yv,windowSize);
+//   // 2) Compute dx with kernelX W/E gradient
+//   GradientXYT x(src.rows(),src.cols());
+//   GradientXYViewT xv(x.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
+//   convolve(src,kernelX,xv,windowSize);
+//   // 3) Compute gradient magnitude - sqrt of sum of the dx,dy squares
+//   GradientXYT gradient(src.rows(),src.cols());
+//   GradientXYViewT gv(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
+//   std::transform(xv.begin(),xv.end(),yv.begin(),gv.begin(),Magnitude<PrecisionT>());
+//   // 4) Compute direction of gradient - atan(dy/dx)
+//   GradientXYT direction(src.rows(),src.cols());
+//   GradientXYViewT dv(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
+//   std::transform(xv.begin(),xv.end(),yv.begin(),dv.begin(),Q1Direction<PrecisionT>());
+//   // 5) Threshold gradient amplitude
+//   GradientXYT thresh(src.rows(),src.cols());
+//   otsuBinarize(gradient,thresh);
+//   // 6) Filter on Direction. To do this
+//   //    1. First we create selection map
+//   //    2. Second we select the gradient value based on selection map
+//   // TODO: there are a whole lot of parameters that are optionally brought in
+//   //       this function is starting to be a PITA - thinking this should be its own func.
+//   
+//}
+
+#define EDGE_FUNCTION(NAME)                                                                     \
+template<typename SrcImageT,typename TgtImageT>                                                 \
+void NAME(const SrcImageT src,TgtImageT& tgt,edge::Kernel type,unsigned windowSize,unsigned channel) { \
+   typedef float PrecisionT;                                                                    \
+   typedef types::Image<types::MonochromePixel<PrecisionT> > KernelT;                           \
+   if(type == edge::SOBEL) {                                                                    \
+      KernelT kernelX;                                                                          \
+      KernelT kernelY;                                                                          \
+      if(windowSize == 3) edge::sobel3(kernelX,kernelY);                                        \
+      else if(windowSize == 5) edge::sobel5(kernelX,kernelY);                                   \
+      else utility::fail("Sobel Edge Detection only supports windowSize 3 and 5");              \
+      NAME(src,kernelX,kernelY,tgt,windowSize,channel);                                         \
+   }                                                                                            \
+   /* else... others as time allows */                                                          \
+}                                                                                               \
+/* end of EDGE_FUNCTION */
+
+EDGE_FUNCTION(edgeGradient)
+EDGE_FUNCTION(edgeDetect)
+
+
+//template<typename SrcImageT,typename TgtImageT>
+//void edgeDetector(const SrcImageT src,TgtImageT& tgt,edge::Kernel type,unsigned windowSize) {
+//   typedef float PrecisionT;
+//   typedef MonochromePixel<PrecisionT> WeightT;
+//   typedef Image<WeightT> KernelT;
+//   if(type == edge::SOBEL) {
+//      KernelT kernelX;
+//      KernelT kernelY;
+//      if(windowSize == 3) sobel3(kernelX,kernelY);
+//      else if(windowSize == 5) sobel5(kernelX,kernelY);
+//      else fail("Sobel Edge Detection only supports windowSize 3 and 5");
+//      edgeDetect(src,kernelX,kernelY,tgt,windowSize);
+//   }
+//   // else... others as time allows
+//}
+
+
+//template<typename SrcImageT,typename TgtImageT,typename PredicateT> // maybe predicate?
+//void orientedEdgeDetector(const SrcImageT src,TgtImageT& tgt,edge::Kernel type, unsigned windowSize,PredicateT orientPredicate) {
+//   TgtImageT edge;
+//   edgeDetector(src,tgt,type,windowSize);
+//
+//   typedef typename KernelT::pixel_type::value_Type PrecisionT;
+//   typedef Image<MonochromePixel<PrecisionT>> GradientT;
+//   if(type == edge::SOBEL) {
+//      KernelT kernelX;
+//      KernelT kernelY;
+//      if(windowSize == 3) sobel3(kernelX,kernelY);
+//      else if(windowSize == 5) sobel5(kernelX,kernelY);
+//      else fail("Sobel Edge Detection only supports windowSize 3 and 5");
+//      edgeDetect(src,kernelX,kernelY,tgt,windowSize);
+//   // 4) Compute direction of gradient - atan(dy/dx)
+//   GradientXYT direction(src.rows(),src.cols());
+//   GradientXYViewT dv(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
+//   std::transform(xv.begin(),xv.end(),yv.begin(),dv.begin(),Q1Direction<PrecisionT>());
+//
+//   }
+//   // else... others as time allows
+//
+//   GradientT gradientM(src.rows(),src.cols());
+//   edgeGradient(src,kernelX,kernelY,gradientM,windowSize);
+//
+//   // TODO: might be nice to select the type of thresholding, we'd like to perform
+//   // the more and more I write this stuff, the more and more that I want to be
+//   // able to support a call graph
+//   otsuBinarize(gradientM,tgt);
+//
+//
+//}
 
 } // namespace algorithm
 } // namespace batchIP

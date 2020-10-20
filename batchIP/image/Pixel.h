@@ -17,6 +17,13 @@ struct RGBAPixel {
 
    typedef ChannelT Channels[4];
    
+   struct Tuple {
+      ChannelT value0;
+      ChannelT value1;
+      ChannelT value2;
+      ChannelT value3;
+   };
+
    struct RGBA {
       ChannelT red;
       ChannelT green;
@@ -32,9 +39,17 @@ struct RGBAPixel {
 #endif
    };
    
+   // The concept of this union is to have many aliases
+   // for the data values of this Pixel. Different
+   // algorithms may want to access the data with one
+   // type of name. In particular, indexedColor and
+   // tuple coordinates have some overlapping names for 
+   // all Pixel types, which could allow certain algorithms
+   // to operate generically.
    union {
       Channels indexedColor;
-      RGBA namedColor;
+      RGBA     namedColor;
+      Tuple    tuple;
    };
 
    enum {
@@ -101,11 +116,16 @@ struct HSIPixel {
 
    typedef ChannelT Channels[4];
    
+   struct Tuple {
+      ChannelT value0;
+      ChannelT value1;
+      ChannelT value2;
+   };
+
    struct HSI {
       ChannelT hue;
       ChannelT saturation;
       ChannelT intensity;
-      ChannelT alpha;
 #if __cplusplus >= 201103L
       HSI() :
          hue(0),
@@ -116,9 +136,17 @@ struct HSIPixel {
 #endif
    };
    
+   // The concept of this union is to have many aliases
+   // for the data values of this Pixel. Different
+   // algorithms may want to access the data with one
+   // type of name. In particular, indexedColor and
+   // tuple coordinates have some overlapping names for 
+   // all Pixel types, which could allow certain algorithms
+   // to operate generically.
    union {
       Channels indexedColor;
       HSI      namedColor;
+      Tuple    tuple;
    };
 
    enum {
@@ -188,8 +216,7 @@ std::ostream& operator<<(std::ostream& os,const HSIPixel<ChannelT,ChannelTraitsT
    os << "HSI_Color(" 
       << (ResoluteType)pixel.namedColor.hue << ","
       << (ResoluteType)pixel.namedColor.saturation << ","
-      << (ResoluteType)pixel.namedColor.intensity << ","
-      << (ResoluteType)pixel.namedColor.alpha << ")";
+      << (ResoluteType)pixel.namedColor.intensity << ")";
 
    return os;
 }
@@ -203,20 +230,33 @@ struct GrayAlphaPixel {
 
    typedef ChannelT Channels[2];
    
-   struct GA {
+   struct Tuple {
+      ChannelT value0;
+      ChannelT value1;
+   };
+
+   struct GrayAlpha {
       ChannelT gray;
       ChannelT alpha;
 #if __cplusplus >= 201103L
-      GA() :
+      GrayAlpha() :
          gray(0),
          alpha(0)
       {}
 #endif
    };
    
+   // The concept of this union is to have many aliases
+   // for the data values of this Pixel. Different
+   // algorithms may want to access the data with one
+   // type of name. In particular, indexedColor and
+   // tuple coordinates have some overlapping names for 
+   // all Pixel types, which could allow certain algorithms
+   // to operate generically.
    union {
-      Channels indexedColor;
-      GA namedColor;
+      Channels  indexedColor;
+      GrayAlpha namedColor;
+      Tuple     tuple;
    };
 
    enum {
@@ -228,6 +268,11 @@ struct GrayAlphaPixel {
    GrayAlphaPixel() :
       namedColor()
    {}
+
+   GrayAlphaPixel(ChannelT gray,ChannelT alpha = 0) {
+      namedColor.gray = gray;
+      namedColor.alpha = alpha;
+   }
 
    // implicit conversion from RGBAPixel
    template<typename ChannelTT,typename ChannelTTTraits>
@@ -299,7 +344,11 @@ struct MonochromePixel {
 
    typedef ChannelT Channels[1];
    
-   struct M {
+   struct Tuple {
+      ChannelT value0;
+   };
+
+   struct Mono {
       ChannelT mono;
 #if __cplusplus >= 201103L
       M() :
@@ -308,19 +357,40 @@ struct MonochromePixel {
 #endif
    };
    
+   // The concept of this union is to have many aliases
+   // for the data values of this Pixel. Different
+   // algorithms may want to access the data with one
+   // type of name. In particular, indexedColor and
+   // tuple coordinates have some overlapping names for 
+   // all Pixel types, which could allow certain algorithms
+   // to operate generically.
    union {
       Channels indexedColor;
-      M        namedColor;
+      Mono     namedColor;
+      Tuple    tuple;
    };
 
    enum {
-      MONO_CHANNEL = 0,
+      GRAY_CHANNEL = 0,
+      MONO_CHANNEL = GRAY_CHANNEL,
       MAX_CHANNELS // 1
    };
 
    MonochromePixel() :
       namedColor()
    {}
+
+   MonochromePixel(ChannelT mono) {
+      namedColor.mono = mono;
+   }
+
+   // implicit conversion from RGBAPixel
+   template<typename ChannelTT,typename ChannelTTTraits>
+   MonochromePixel(const GrayAlphaPixel<ChannelTT,ChannelTTTraits>& gray);
+
+   // also provide implicit conversion to GrayAlphaPixel via conversion cast
+   template<typename ChannelTT,typename ChannelTTTraits>
+   operator GrayAlphaPixel<ChannelTT,ChannelTTTraits>() const;
 
    bool operator==(const MonochromePixel& that) {
       return namedColor.mono == that.namedColor.mono;
@@ -330,10 +400,25 @@ struct MonochromePixel {
       return !(*this == that);
    }
 
-   // implicit conversion from RGBAPixel
+   // explicit conversion from RGBAPixel channel
    template<unsigned channel,template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
    explicit MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& rgba);
 };
+
+template<typename ChannelT,typename ChannelTraitsT>
+template<typename ChannelTT,typename ChannelTTTraits>
+MonochromePixel<ChannelT,ChannelTraitsT>::MonochromePixel(const GrayAlphaPixel<ChannelTT,ChannelTTTraits>& gray) :
+   namedColor() {
+   channel2mono(gray,*this,GRAY_CHANNEL);
+}
+
+template<typename ChannelT,typename ChannelTraitsT>
+template<typename ChannelTT,typename ChannelTTTraits>
+MonochromePixel<ChannelT,ChannelTraitsT>::operator GrayAlphaPixel<ChannelTT,ChannelTTTraits>() const {
+   GrayAlphaPixel<ChannelTT,ChannelTTTraits> gray;
+   channel2mono(*this,gray,MONO_CHANNEL);
+   return gray;
+}
 
 
 template<typename ChannelT,typename ChannelTraitsT>
@@ -366,52 +451,80 @@ std::ostream& operator<<(std::ostream& os,const MonochromePixel<ChannelT,Channel
 }
 
 
-template<typename ChannelT,typename ChannelTraitsT = ChannelTraits<ChannelT> >
-struct ParametricGrayAlphaPixel {
-   
+//template<typename ChannelT,typename ChannelTraitsT = ChannelTraits<ChannelT> >
+//struct ParametricGrayAlphaPixel {
+//   
+//   typedef ChannelT value_type;
+//   typedef ChannelTraitsT traits;
+//
+//   typedef ChannelT Channels[2];
+//   
+//   struct GA {
+//      ChannelT gray;
+//      ChannelT alpha;
+//#if __cplusplus >= 201103L
+//      GA() :
+//         gray(0),
+//         alpha(0)
+//      {}
+//#endif
+//   };
+//
+//   union {
+//      Channels indexedColor;
+//      GA namedColor;
+//   };
+//
+//   unsigned row;
+//   unsigned col;
+//
+//   enum {
+//      GRAY_CHANNEL   = 0,
+//      ALPHA_CHANNEL, // 1
+//      MAX_CHANNELS   // 2
+//   };
+//
+//   ParametricGrayAlphaPixel() :
+//      namedColor()
+//   {}
+//
+//   bool operator==(const ParametricGrayAlphaPixel& that) {
+//      return namedColor.gray == that.namedColor.gray &&
+//             namedColor.alpha == that.namedColor.alpha;
+//   }
+//
+//   bool operator!=(const ParametricGrayAlphaPixel& that) {
+//      return !(*this == that);
+//   }
+//};
+
+template<template<typename,typename> class PixelT,
+         typename ChannelT,
+         typename ChannelTraitsT = ChannelTraits<ChannelT> >
+struct ParametricPixel : public PixelT<ChannelT,ChannelTraitsT> {
+   typedef PixelT<ChannelT,ChannelTraitsT> SuperT;
    typedef ChannelT value_type;
    typedef ChannelTraitsT traits;
 
-   typedef ChannelT Channels[2];
-   
-   struct GA {
-      ChannelT gray;
-      ChannelT alpha;
-#if __cplusplus >= 201103L
-      GA() :
-         gray(0),
-         alpha(0)
-      {}
-#endif
-   };
+   unsigned mRow;
+   unsigned mCol;
 
-   union {
-      Channels indexedColor;
-      GA namedColor;
-   };
-
-   unsigned row;
-   unsigned col;
-
-   enum {
-      GRAY_CHANNEL   = 0,
-      ALPHA_CHANNEL, // 1
-      MAX_CHANNELS   // 2
-   };
-
-   ParametricGrayAlphaPixel() :
-      namedColor()
+   ParametricPixel() :
+      mRow(0), mCol(0)
    {}
 
-   bool operator==(const ParametricGrayAlphaPixel& that) {
-      return namedColor.gray == that.namedColor.gray &&
-             namedColor.alpha == that.namedColor.alpha;
+   bool operator==(const ParametricPixel& that) {
+      return SuperT::operator==(that) &&
+             mRow == that.mRow &&
+             mCol == that.mCol;
    }
 
-   bool operator!=(const ParametricGrayAlphaPixel& that) {
+   bool operator!=(const ParametricPixel& that) {
       return !(*this == that);
    }
 };
+
+
 
 
 } // namespace types
