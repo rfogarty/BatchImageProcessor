@@ -24,7 +24,7 @@ private:
    enum { NUM_PARAMETERS = 1 };
 
 public:
-   Scale(int amount) : mAmount(amount) {}
+   explicit Scale(int amount) : mAmount(amount) {}
 
    virtual ~Scale() {}
 
@@ -58,7 +58,7 @@ private:
    enum { NUM_PARAMETERS = 4 };
 
 public:
-   Crop(const types::RegionOfInterest& roi) : mROI(roi) {}
+   explicit Crop(const types::RegionOfInterest& roi) : mROI(roi) {}
 
    virtual ~Crop() {}
 
@@ -102,7 +102,7 @@ private:
    enum { NUM_PARAMETERS = 1 };
 
 public:
-   Intensity(int amount) : mAmount(amount) {}
+   explicit Intensity(int amount) : mAmount(amount) {}
 
    virtual ~Intensity() {}
 
@@ -144,7 +144,7 @@ private:                                                                        
    enum { NUM_PARAMETERS = 2 };                                                                                    \
                                                                                                                    \
 public:                                                                                                            \
-   NAME(unsigned low,unsigned high) : mLow(low), mHigh(high) {}                                                    \
+   explicit NAME(unsigned low,unsigned high) : mLow(low), mHigh(high) {}                                           \
                                                                                                                    \
    virtual ~NAME() {}                                                                                              \
                                                                                                                    \
@@ -312,7 +312,7 @@ private:
    enum { NUM_PARAMETERS = 1 };
 
 public:
-   Histogram(unsigned logBase) : mLogBase(logBase) {}
+   explicit Histogram(unsigned logBase) : mLogBase(logBase) {}
 
    virtual ~Histogram() {}
 
@@ -410,7 +410,7 @@ private:
    enum { NUM_PARAMETERS = 1 };
 
 public:
-   Binarize(unsigned threshold) : mThreshold(threshold) {}
+   explicit Binarize(unsigned threshold) : mThreshold(threshold) {}
    
    virtual ~Binarize() {}
 
@@ -450,8 +450,6 @@ private:
    enum { NUM_PARAMETERS = 0 };
 
 public:
-   OptimalBinarize() {}
-   
    virtual ~OptimalBinarize() {}
 
    virtual ActionType type() const { return BINARIZE; }
@@ -488,8 +486,6 @@ private:
    enum { NUM_PARAMETERS = 0 };
 
 public:
-   OtsuBinarize() {}
-   
    virtual ~OtsuBinarize() {}
 
    virtual ActionType type() const { return BINARIZE; }
@@ -629,7 +625,7 @@ private:
    enum { NUM_PARAMETERS = 1 };
 
 public:
-   SelectColor(unsigned channel) : mChannel(channel) {}
+   explicit SelectColor(unsigned channel) : mChannel(channel) {}
 
    virtual ~SelectColor() {}
 
@@ -672,7 +668,7 @@ private:
    enum { NUM_PARAMETERS = 1 };
 
 public:
-   SelectHSI(unsigned channel) : mChannel(channel) {}
+   explicit SelectHSI(unsigned channel) : mChannel(channel) {}
 
    virtual ~SelectHSI() {}
 
@@ -760,7 +756,7 @@ private:
    enum { NUM_PARAMETERS = 1 };
 
 public:
-   UniformSmooth(unsigned windowSize) : mWindowSize(windowSize) {}
+   explicit UniformSmooth(unsigned windowSize) : mWindowSize(windowSize) {}
    
    virtual ~UniformSmooth() {}
 
@@ -794,13 +790,13 @@ public:                                                                         
    typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
                                                                                                                                                       \
 private:                                                                                                                                              \
-   unsigned mChannel;                                                                                                                                 \
+   unsigned mChannel;    /* TODO: this is stupid as a parameter for Grayscale stuff */                                                                \
    unsigned mKernelType; /* TODO: should this use the enum? */                                                                                        \
    unsigned mWindowSize;                                                                                                                              \
                                                                                                                                                       \
    void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned channel,unsigned kernelType,unsigned windowSize) const {    \
       typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
-      algorithm::ALGO(types::roi2view(src,roi),tgtview,(algorithm::edge::Kernel)kernelType,windowSize,channel);                                                                \
+      algorithm::ALGO(types::roi2view(src,roi),tgtview,(algorithm::edge::Kernel)kernelType,windowSize,channel);                                       \
    }                                                                                                                                                  \
                                                                                                                                                       \
    enum { NUM_PARAMETERS = 3 };                                                                                                                       \
@@ -821,8 +817,8 @@ public:                                                                         
    virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
       utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
       unsigned channel = utility::parseWord<unsigned>(parameters[0]);                                                                                 \
-      unsigned kernel = utility::parseWord<unsigned>(parameters[0]);                                                                                  \
-      unsigned windowSize = utility::parseWord<unsigned>(parameters[0]);                                                                              \
+      unsigned kernel = utility::parseWord<unsigned>(parameters[1]);                                                                                  \
+      unsigned windowSize = utility::parseWord<unsigned>(parameters[2]);                                                                              \
       run(src,tgt,roi,channel,kernel,windowSize);                                                                                                     \
    }                                                                                                                                                  \
                                                                                                                                                       \
@@ -838,6 +834,67 @@ public:                                                                         
 EDGE_ACTION(EdgeGradient,edgeGradient)
 EDGE_ACTION(EdgeDetect,edgeDetect)
 
+
+#define ORIENTED_EDGE_ACTION(NAME,ALGO)                                                                                                               \
+template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >                      \
+class NAME : public Action<ImageSrc,ImageTgt> {                                                                                                       \
+public:                                                                                                                                               \
+   typedef Action<ImageSrc,ImageTgt> SuperT;                                                                                                          \
+   typedef NAME<ImageSrc,ImageTgt> ThisT;                                                                                                             \
+   typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
+                                                                                                                                                      \
+private:                                                                                                                                              \
+   unsigned mChannel;   /* TODO: this is stupid as a parameter for Grayscale stuff */                                                                 \
+   unsigned mKernelType; /* TODO: should this use the enum? */                                                                                        \
+   unsigned mWindowSize;                                                                                                                              \
+   float mLowBound;                                                                                                                                   \
+   float mHighBound;                                                                                                                                  \
+                                                                                                                                                      \
+   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned channel,unsigned kernelType,unsigned windowSize,            \
+            float lowBound,float highBound) const {                                                                                                   \
+      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
+      algorithm::ALGO(types::roi2view(src,roi),tgtview,(algorithm::edge::Kernel)kernelType,windowSize,channel,lowBound,highBound);                    \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   enum { NUM_PARAMETERS = 5 };                                                                                                                       \
+                                                                                                                                                      \
+public:                                                                                                                                               \
+   NAME(unsigned channel,unsigned kernel,unsigned windowSize,                                                                                         \
+        float lowBound,float highBound) : mChannel(channel),mKernelType(kernel),mWindowSize(windowSize),mLowBound(lowBound),mHighBound(highBound) {}  \
+                                                                                                                                                      \
+   virtual ~NAME() {}                                                                                                                                 \
+                                                                                                                                                      \
+   virtual ActionType type() const { return EDGE; }                                                                                                   \
+                                                                                                                                                      \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
+      run(src,tgt,view2roi(src.defaultView()),mChannel,mKernelType,mWindowSize,mLowBound,mHighBound);                                                 \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
+      unsigned channel = utility::parseWord<unsigned>(parameters[0]);                                                                                 \
+      unsigned kernel = utility::parseWord<unsigned>(parameters[1]);                                                                                  \
+      unsigned windowSize = utility::parseWord<unsigned>(parameters[2]);                                                                              \
+      float lowBound = utility::parseWord<float>(parameters[3]);                                                                                      \
+      float highBound = utility::parseWord<float>(parameters[4]);                                                                                     \
+      run(src,tgt,roi,channel,kernel,windowSize,lowBound,highBound);                                                                                  \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   static NAME* make(std::istream& ins) {                                                                                                             \
+      unsigned channel = utility::parseWord<unsigned>(ins);                                                                                           \
+      unsigned kernel = utility::parseWord<unsigned>(ins);                                                                                            \
+      unsigned windowSize = utility::parseWord<unsigned>(ins);                                                                                        \
+      float lowBound = utility::parseWord<float>(ins);                                                                                                \
+      float highBound = utility::parseWord<float>(ins);                                                                                               \
+      return new NAME<ImageSrc,ImageTgt>(channel,kernel,windowSize,lowBound,highBound);                                                               \
+   }                                                                                                                                                  \
+};                                                                                                                                                    \
+/* End of EDGE_ACTION */
+
+ORIENTED_EDGE_ACTION(OrientedEdgeGradient,orientedEdgeGradient)
+ORIENTED_EDGE_ACTION(OrientedEdgeDetect,orientedEdgeDetect)
 
 } // namespace operation
 } // namespace batchIP

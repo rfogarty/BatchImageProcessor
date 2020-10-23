@@ -171,6 +171,8 @@ void parseAndRunOperation(const std::string& line) {
          else if(operation == "uniformSmooth") process(inputfile,outputfile,operation,line,ss,UniformSmooth<ImageT>::make(ss));
          else if(operation == "edgeGradient")  process(inputfile,outputfile,operation,line,ss,EdgeGradient<ImageT>::make(ss));
          else if(operation == "edgeDetect")    process(inputfile,outputfile,operation,line,ss,EdgeDetect<ImageT>::make(ss));
+         else if(operation == "orientedEdgeGradient")  process(inputfile,outputfile,operation,line,ss,OrientedEdgeGradient<ImageT>::make(ss));
+         else if(operation == "orientedEdgeDetect")  process(inputfile,outputfile,operation,line,ss,OrientedEdgeDetect<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;

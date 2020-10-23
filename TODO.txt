@@ -15,13 +15,13 @@ HW#3
 
 Edge Detection [5 points]
 * Add edge detection for grey level images to your choice of options.
-* Use Sobel operator (3x3) and (5x5) to compute dx and dy, compute gradient amplitude, compute edge direction
+DONE * Use Sobel operator (3x3) and (5x5) to compute dx and dy, compute gradient amplitude, compute edge direction
 * Your program should
- ** operate within specified ROIs (up to three ROIs as in previous assignments)
- ** generate display of the amplitude of the gradient operator as intensity image
- ** generate binary edge image derived from amplitude of the gradient operator by thresholding.
- ** generate binary edge image by further thresholding the above output using direction information,
-    e.g. display only horizontal (0 degrees +/- 10 degree) or (45 degrees +/- 10 degree) edges etc.
+DONE ** operate within specified ROIs (up to three ROIs as in previous assignments)
+DONE ** generate display of the amplitude of the gradient operator as intensity image
+DONE ** generate binary edge image derived from amplitude of the gradient operator by thresholding.
+DONE ** generate binary edge image by further thresholding the above output using direction information,
+        e.g. display only horizontal (0 degrees +/- 10 degree) or (45 degrees +/- 10 degree) edges etc.
 * Utilization of OpenCV [5 points]
  ** replicate first part of this assignment (Sobel) using OpenCV calls and compare performance
  ** utilize Canny module of OpenCV and compare to Sobel results

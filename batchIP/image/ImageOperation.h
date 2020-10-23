@@ -36,6 +36,7 @@ private:
          ParameterizedRegionsT::const_iterator pos = mRegions.begin();
          ParameterizedRegionsT::const_iterator end = mRegions.end();
          for(;pos != end;++pos) {
+//            std::cout << "Processing ROI: " << pos->first << ":" << pos->second.size() << std::endl;
             // Call run with RegionOfInterest and ParameterPack
             mAction->run(src,tgt,pos->first,pos->second);
          }

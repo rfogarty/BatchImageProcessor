@@ -28,6 +28,11 @@ struct RegionOfInterest {
    {}
 };
 
+std::ostream& operator<<(std::ostream& os, const RegionOfInterest& roi) {
+   os << "{" << roi.mRowBegin << "," << roi.mColBegin << "," << roi.mRows << "," << roi.mCols << "}";
+   return os;
+}
+
 
 template<typename ImageT>
 typename ImageT::image_view roi2view(ImageT& image,const RegionOfInterest& roi) {

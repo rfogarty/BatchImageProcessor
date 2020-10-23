@@ -33,9 +33,9 @@ void add(const SrcImageT& src, TgtImageT& tgt, Value value,
    // TODO: SFINAE selection of integral, versus floating point types, or need way to select
    // signed value type that is larger than native type(if possible)
  
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    for(;spos != send;++spos,++tpos) {
       *tpos = *spos;
@@ -52,8 +52,8 @@ typedef std::vector<double> HistogramT;
 template<typename SrcImageT>
 HistogramT computeHistogram(const SrcImageT& src,unsigned cols,unsigned channel,double& maxColumnHeight) {
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
 
    // Compute Histogram
    HistogramT histogram(cols,0u);
@@ -68,8 +68,8 @@ HistogramT computeHistogram(const SrcImageT& src,unsigned cols,unsigned channel,
 
 void normalizeHistogram(HistogramT& histogram,unsigned rows,double maxColumnHeight) {
    // Normalize the Histogram to the bounds of the rows dimension, to scale to drawing
-   HistogramT::iterator       hpos = histogram.begin();
-   const HistogramT::iterator hend = histogram.end();
+   HistogramT::iterator       hpos(histogram.begin());
+   const HistogramT::iterator hend(histogram.end());
 
    double normScale1 = (double) 1.0 / maxColumnHeight;
    double normScale2 = (double) rows;
@@ -80,8 +80,8 @@ void normalizeHistogram(HistogramT& histogram,unsigned rows,double maxColumnHeig
 
 void logNormalizeHistogram(HistogramT& histogram,unsigned rows,double maxColumnHeight,unsigned logBase) {
    // Log Normalize the Histogram to the bounds of the rows dimension, to scale to drawing
-   HistogramT::iterator       hpos = histogram.begin();
-   const HistogramT::iterator hend = histogram.end();
+   HistogramT::iterator       hpos(histogram.begin());
+   const HistogramT::iterator hend(histogram.end());
 
    // TODO: All log functions are scale invariant, so doesn't really 
    // matter what the base is. It's possible to define a similar
@@ -107,14 +107,14 @@ void drawHistogram(TgtImageT& tgt,const HistogramT& histogram) {
    // created an Image transpose function...
 
    // 1) first whiten the whole image
-   typename TgtImageT::iterator tpos = tgt.begin();
-   typename TgtImageT::iterator tend = tgt.end();
+   typename TgtImageT::iterator tpos(tgt.begin());
+   typename TgtImageT::iterator tend(tgt.end());
    for(;tpos != tend;++tpos) tpos->namedColor.gray = TgtImageT::pixel_type::traits::max();
 
    // 2) blacken the histograms working from the top, down
    unsigned height = tgt.rows();
-   HistogramT::const_iterator hpos = histogram.begin();
-   HistogramT::const_iterator hend = histogram.end();
+   HistogramT::const_iterator hpos(histogram.begin());
+   HistogramT::const_iterator hend(histogram.end());
    for(unsigned col = 0;hpos != hend;++hpos,++col) {
       for(unsigned r = (unsigned)*hpos;r > 0;--r) {
          tgt.pixel(height - r,col).namedColor.gray = TgtImageT::pixel_type::traits::min();
@@ -195,8 +195,8 @@ void afixAnyHSI(const SrcImageT& src, TgtImageT& tgt,
 
    double normVal = (double)value/SrcImageT::pixel_type::traits::max();
 
-   typename HSIImage::iterator spos = hsiImage.begin();
-   typename HSIImage::iterator send = hsiImage.end();
+   typename HSIImage::iterator spos(hsiImage.begin());
+   typename HSIImage::iterator send(hsiImage.end());
 
    for(;spos != send;++spos) {
       spos->indexedColor[channel] = normVal;
@@ -217,9 +217,9 @@ void histogramModify(const SrcImageT& src, TgtImageT& tgt,Value low,Value high,
 
    utility::reportIfNotLessThan("cols!=max",low,high);
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    float rescale = (float) TgtImageT::pixel_type::traits::max()/(high - low);
 
@@ -251,9 +251,9 @@ void histogramModifyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value hig
 
    utility::reportIfNotLessThan("low<high",low,high);
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    double rescale = ((double) TgtImageT::pixel_type::traits::max() - 
                      (double) TgtImageT::pixel_type::traits::min()) /
@@ -282,9 +282,9 @@ void histogramModifyAnyRGB(const SrcImageT& src, TgtImageT& tgt,Value low,Value 
    utility::reportIfNotLessThan("channels",channel,(unsigned)SrcImageT::pixel_type::MAX_CHANNELS);
    utility::reportIfNotLessThan("low<high",low,high);
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    double rescale = ((double) TgtImageT::pixel_type::traits::max() - 
                      (double) TgtImageT::pixel_type::traits::min()) /
@@ -315,8 +315,8 @@ void linearlyStretchChannel(HSIImage& hsiImage,Bounds minBounds,Bounds maxBounds
    typename HSIImage::pixel_type::value_type min = HSIImage::pixel_type::traits::min();
    typename HSIImage::pixel_type::value_type max = HSIImage::pixel_type::traits::max();
 
-   typename HSIImage::iterator spos = hsiImage.begin();
-   typename HSIImage::iterator send = hsiImage.end();
+   typename HSIImage::iterator spos(hsiImage.begin());
+   typename HSIImage::iterator send(hsiImage.end());
 
    for(;spos != send;++spos) {
       linearlyStretch(spos->indexedColor[channel],
@@ -408,9 +408,9 @@ void add(const SrcImageT& src, TgtImageT& tgt, int value,
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<types::is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
  
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    for(;spos != send;++spos,++tpos) {
       *tpos = *spos;
@@ -440,9 +440,9 @@ void binarize(const SrcImageT& src, TgtImageT& tgt, unsigned threshold,
               // deduction so can't be applied to in parameter directly.                              
               typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    for(;spos != send;++spos,++tpos) {
       if(spos->namedColor.gray < threshold) tpos->namedColor.gray = TgtImageT::pixel_type::traits::min();
@@ -468,8 +468,8 @@ void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
    // First compute the average as starting threshold
    typedef typename types::AccumulatorVariableSelect<typename SrcImageT::pixel_type>::type AccumulatorT;
    AccumulatorT accum = 0;
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
    unsigned number = 0;
    for(;spos != send;++spos,++number) {
       accum += spos->namedColor.gray;
@@ -486,8 +486,8 @@ void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
       // First save off thresholdLast
       thresholdLast = threshold;
       // Now compute new threshold
-      typename SrcImageT::const_iterator sposl = src.begin();
-      typename SrcImageT::const_iterator sendl = src.end();
+      typename SrcImageT::const_iterator sposl(src.begin());
+      typename SrcImageT::const_iterator sendl(src.end());
       AccumulatorT accumBG = 0;
       AccumulatorT accumFG = 0;
       unsigned numberBG = 0;
@@ -510,6 +510,9 @@ void optimalBinarize(const SrcImageT& src, TgtImageT& tgt,
 }
 
 /*-----------------------------------------------------------------------**/
+// Note: because of the discrete histogram approach of this algorithm
+// currently it can only operate properly on integral pixel channels. Floating
+// point (or continuous-valued) images will not render properly.
 template<typename SrcImageT,typename TgtImageT>
 void otsuBinarize(const SrcImageT& src, TgtImageT& tgt,
               // This ugly bit is an unnamed argument with a default which means it neither           
@@ -560,9 +563,9 @@ void otsuBinarize(const SrcImageT& src, TgtImageT& tgt,
    }
 
    // Now do the actual binarization based on threshold.
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
    for(;spos != send;++spos,++tpos) {
       if(spos->tuple.value0 < maxThreshold) tpos->tuple.value0 = TgtImageT::pixel_type::traits::min();
       else                                  tpos->tuple.value0 = TgtImageT::pixel_type::traits::max();
@@ -584,9 +587,9 @@ void binarizeColor(const SrcImageT& src, TgtImageT& tgt, float thresholdDistance
                    // deduction so can't be applied to in parameter directly.                              
                    typename std::enable_if<types::is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    // To avoid expensive sqrt on all distance calculations,
    // we may instead compare to the squared thresholdDistance.
@@ -639,9 +642,9 @@ void selectColor(const SrcImageT& src, TgtImageT& tgt, unsigned channel,
                    // deduction so can't be applied to in parameter directly.                              
                    typename std::enable_if<types::is_rgba<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    for(;spos != send;++spos,++tpos) channel2mono(*spos,*tpos,channel);
 }
@@ -661,9 +664,9 @@ void selectHSI(const SrcImageT& src, TgtImageT& tgt, unsigned channel,
    HSIImageT hsiSrc(src.rows(),src.cols());
    hsiSrc = src;
 
-   typename HSIImageT::const_iterator spos = hsiSrc.begin();
-   typename HSIImageT::const_iterator send = hsiSrc.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename HSIImageT::const_iterator spos(hsiSrc.begin());
+   typename HSIImageT::const_iterator send(hsiSrc.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    for(;spos != send;++spos,++tpos) channel2mono(*spos,*tpos,channel);
 }
@@ -680,9 +683,9 @@ void binarizeDouble(const SrcImageT& src, TgtImageT& tgt, unsigned thresholdLow,
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<types::is_grayscale<typename SrcImageT::pixel_type>::value,int>::type* = 0) {
 
-   typename SrcImageT::const_iterator spos = src.begin();
-   typename SrcImageT::const_iterator send = src.end();
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
 
    for(;spos != send;++spos,++tpos) {
       if(spos->namedColor.gray < thresholdLow || spos->namedColor.gray >= thresholdHigh)
@@ -696,14 +699,14 @@ void binarizeDouble(const SrcImageT& src, TgtImageT& tgt, unsigned thresholdLow,
 template<typename PixelT,typename AccumulatorVariableTT>
 struct PixelSubtractor {
    AccumulatorVariableTT& mAccumulator;
-   PixelSubtractor(AccumulatorVariableTT& accumulator) : mAccumulator(accumulator) {}
+   explicit PixelSubtractor(AccumulatorVariableTT& accumulator) : mAccumulator(accumulator) {}
    void operator()(const PixelT& pixel) { mAccumulator -= pixel.namedColor.gray; }
 };
 
 template<typename PixelT,typename AccumulatorVariableTT>
 struct PixelAdder {
    AccumulatorVariableTT& mAccumulator;
-   PixelAdder(AccumulatorVariableTT& accumulator) : mAccumulator(accumulator) {}
+   explicit PixelAdder(AccumulatorVariableTT& accumulator) : mAccumulator(accumulator) {}
    void operator()(const PixelT& pixel) { mAccumulator += pixel.namedColor.gray; }
 };
 
@@ -802,7 +805,7 @@ void uniformSmooth(const SrcImageT& src, TgtImageT& tgt,unsigned windowSize,
 
    // We can write out result to iterator operating over entire passed Image or ImageView
    // since the iteration order is exactly the same as our loops.
-   typename TgtImageT::iterator tpos = tgt.begin();
+   typename TgtImageT::iterator tpos(tgt.begin());
 
    // Start by smoothing along X for each row
    for(unsigned i = 0;i < rows;++i) {
@@ -857,9 +860,9 @@ void scale(const SrcImageT& src, TgtImageT& tgt, float ratio,
       unsigned rows = src.rows()*2;
       unsigned cols = src.cols()*2;
       for(unsigned i = 0; i < rows; ++i) {
-         unsigned i2 = i >> 1; // divide by 2
+         unsigned i2 = i >> 1u; // divide by 2
          for(unsigned j = 0; j < cols; ++j) {
-            unsigned j2 = j >> 1; // divide by 2
+            unsigned j2 = j >> 1u; // divide by 2
             tgt.pixel(i,j) = src.pixel(i2,j2);
          }
       }
@@ -873,9 +876,9 @@ void scale(const SrcImageT& src, TgtImageT& tgt, float ratio,
       unsigned rows = src.rows() >> 1;
       unsigned cols = src.cols() >> 1;
       for(unsigned i = 0; i < rows; ++i) {
-         unsigned i2 = i << 1; // multiply by 2
+         unsigned i2 = i << 1u; // multiply by 2
          for(unsigned j = 0; j < cols; ++j) {
-            unsigned j2 = j << 1; // multiply by 2
+            unsigned j2 = j << 1u; // multiply by 2
             // average the values of four pixels
             AccumulatorT acc = src.pixel(i2,j2).namedColor.gray;
             acc += src.pixel(i2,j2+1).namedColor.gray;
@@ -908,7 +911,7 @@ void scale(const SrcImageT& src, TgtImageT& tgt, float ratio,
 //
 // Note: output target will be smaller than input source by the kernel parameters: (M-1)x(N-1)
 template<typename SrcImageT,typename KernelT,typename TgtImageT>
-void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned windowSize,unsigned channel) {
+void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned channel) {
 
    utility::reportIfNotLessThan("kernel.rows() < src.rows()",kernel.rows(),src.rows()+1);
    utility::reportIfNotLessThan("kernel.cols() < src.cols()",kernel.cols(),src.cols()+1);
@@ -921,9 +924,6 @@ void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned
 
    unsigned kernelRows = kernel.rows();
    unsigned kernelCols = kernel.cols();
-   // Note kernel windows should be odd sized, so in a symmetric window sense, these are half windows
-   unsigned kernelHalfRows = kernelRows>>1;
-   unsigned kernelHalfCols = kernelCols>>1;
 
 
    typedef typename SrcImageT::image_view SrcViewT;
@@ -935,10 +935,15 @@ void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned
    //    will be doing at least twice as much work as is needed (a simple solution may exist for the 3x3 windows,
    //    but a 5x5 Sobel might be a bit more complicated.) Although, this may be all moot, if we instead implement
    //    convolution in the Fourier domain later (which should drastically shrink the convolution complexity).
+   typedef typename TgtImageT::pixel_type::value_type ValueT;
+
+   ValueT maxVal = static_cast<ValueT>(0);
+
    for(unsigned i = 0; i < tgt.rows(); ++i) {
-      SrcViewT sview = src.view(kernelRows,kernelCols,kernelHalfRows+i,kernelHalfCols);
-      for(unsigned j = 0; j < tgt.cols(); ++j,sview.shiftCol()) {
-         tgt.pixel(i,j).tuple.value0 = static_cast<typename TgtImageT::pixel_type::value_type>(0);
+      SrcViewT sview = src.view(kernelRows,kernelCols,i,0);
+      for(unsigned j = 0;;) {
+         ValueT& tgtref = tgt.pixel(i,j).tuple.value0;
+         tgtref = static_cast<ValueT>(0);
          for(unsigned m = 0; m < kernelRows; ++m) {
             for(unsigned n = 0; n < kernelCols; ++n) {
                // TODO:  How do I want to treat kernel matrix data?
@@ -949,11 +954,23 @@ void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned
                // TODO: do I have to worry about scaling the output? as the following does not currently account
                // for scaling input and output if min/max are different ranges.
                // TODO: also does the kernel need to be normalized?
-               tgt.pixel(i,j).tuple.value0 += sview.pixel(m,n).indexedColor[channel] * kernel.pixel(m,n).namedColor.mono;
+               tgtref += sview.pixel(m,n).indexedColor[channel] * kernel.pixel(m,n).namedColor.mono;
             }
          }
+         if(tgtref > maxVal) maxVal = tgtref;
+         // This is super ugly but there is no way to shift to and "end" position for the pseudo-iterator sview.
+         // If we increment once too many times then we will force an assertion or throw an exception.
+         ++j;
+         if(j < tgt.cols()) sview.shiftCol();
+         else break;
       } 
    }
+
+   // Now we should normalize the entire image by the maxVal.
+   typename TgtImageT::iterator tpos(tgt.begin());
+   typename TgtImageT::iterator tend(tgt.end());
+   for(;tpos != tend;++tpos) tpos->tuple.value0 /= maxVal;
+   
 }
 
 // Function predicates that can be used in std::transform and other expressions
@@ -975,25 +992,32 @@ namespace predicate {
    struct Q1Direction { T operator()(T x,T y) { return std::abs(atan(y.tuple.value0/x.tuple.value0)); } };
    
    template<typename T>
-   struct Select { T operator()(T v, T s) { return s.tuple.value0 > 0.5 ? v.tuple.value0 : 0; } };
-   
-   template<typename T>
+   struct Select { T operator()(T v, T s) { return s.tuple.value0 > 0.5 ? v : T(0); } };
+
+   template<typename T,typename V>
    struct IsLessThan {
-      T threshold;
+      V threshold;
       T operator()(T v) { return v.tuple.value0 < threshold ? 1 : 0; }
    };
-   
-   template<typename T>
+
+   template<typename T,typename V>
    struct IsGreaterThan {
-      T threshold;
+      V threshold;
       T operator()(T v) { return v.tuple.value0 > threshold ? 1 : 0; }
    };
    
-   template<typename T>
+   template<typename T,typename V>
    struct IsBetween {
-      T thresholdLow;
-      T thresholdHigh;
-      T operator()(T v) { return (thresholdLow < v.tuple.value0 && v.tuple.value0 <= thresholdHigh) ? 1 : 0; }
+      V thresholdLow;
+      V thresholdHigh;
+      T operator()(T v) { return (thresholdLow <= v.tuple.value0 && v.tuple.value0 < thresholdHigh) ? 1 : 0; }
+   };
+
+   template<typename T,typename V>
+   struct IsDisjointBetween {
+      V thresholdLow;
+      V thresholdHigh;
+      T operator()(T v) { return (thresholdLow >= v.tuple.value0 || v.tuple.value0 > thresholdHigh) ? 1 : 0; }
    };
 
 } // namespace predicate
@@ -1089,14 +1113,15 @@ namespace edge {
 template<typename GradientT,typename SrcImageT,typename KernelT>
 GradientT gradientPartial(const SrcImageT src,const KernelT& kernel,unsigned windowSize,unsigned channel) {
 
-   unsigned halfWindowSize = windowSize >> 1;
-   unsigned windowSizeEven = halfWindowSize << 1;
+   unsigned halfWindowSize = windowSize >> 1u;
+   unsigned windowSizeEven = halfWindowSize << 1u;
 
    // Compute gradient by convolving with kernel
    typedef typename GradientT::image_view GradientViewT;
    GradientT gradient(src.rows(),src.cols());
    GradientViewT gradientView(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven,halfWindowSize,halfWindowSize));
-   convolve(src,kernel,gradientView,windowSize,channel);
+
+   convolve(src,kernel,gradientView,channel);
    return gradient;
 }
 
@@ -1109,6 +1134,16 @@ GradientT gradientMagnitude(const GradientT& gradientX,const GradientT& gradient
    std::transform(gradientX.begin(),gradientX.end(),gradientY.begin(),gradient.begin(),predicate::Magnitude<PixelT>());
    return gradient;
 }
+
+template<typename GradientT>
+GradientT gradientDirection(const GradientT& gradientX,const GradientT& gradientY) {
+   typedef typename GradientT::pixel_type PixelT;
+   // Compute gradient magnitude - sqrt of sum of the dx,dy squares
+   GradientT gradient(gradientX.rows(),gradientX.cols());
+   std::transform(gradientX.begin(),gradientX.end(),gradientY.begin(),gradient.begin(),predicate::Direction<PixelT>());
+   return gradient;
+}
+
 
 template<typename SrcImageT,typename KernelT,typename TgtImageT>
 void edgeGradient(const SrcImageT src,const KernelT& kernelX,const KernelT& kernelY,TgtImageT& tgt,unsigned windowSize,unsigned channel) {
@@ -1124,18 +1159,29 @@ void edgeGradient(const SrcImageT src,const KernelT& kernelX,const KernelT& kern
 }
 
 template<typename SrcImageT,typename KernelT,typename TgtImageT>
-void edgeDetect(const SrcImageT src,const KernelT& kernelX,const KernelT& kernelY,TgtImageT& tgt,unsigned windowSize,unsigned channel) {
+void edgeGradientAndDirection(const SrcImageT src,const KernelT& kernelX,const KernelT& kernelY,TgtImageT& gradientMag,TgtImageT& gradientDir,unsigned windowSize,unsigned channel) {
 
    typedef typename KernelT::pixel_type::value_type PrecisionT;
    typedef types::Image<types::MonochromePixel<PrecisionT> > GradientT;
 
-   GradientT gradientM(src.rows(),src.cols());
-   edgeGradient(src,kernelX,kernelY,gradientM,windowSize,channel);
+   GradientT gradientX(gradientPartial<GradientT>(src,kernelX,windowSize,channel));
+
+   GradientT gradientY(gradientPartial<GradientT>(src,kernelY,windowSize,channel));
+
+   gradientMag = gradientMagnitude(gradientX,gradientY);
+
+   gradientDir = gradientDirection(gradientX,gradientY);
+}
+
+template<typename SrcImageT,typename KernelT,typename TgtImageT>
+void edgeDetect(const SrcImageT src,const KernelT& kernelX,const KernelT& kernelY,TgtImageT& tgt,unsigned windowSize,unsigned channel) {
+
+   edgeGradient(src,kernelX,kernelY,tgt,windowSize,channel);
 
    // TODO: might be nice to select the type of thresholding, we'd like to perform
    // the more and more I write this stuff, the more and more that I want to be
    // able to support a call graph
-   otsuBinarize(gradientM,tgt);
+   otsuBinarize(tgt,tgt);
 }
 
 
@@ -1200,55 +1246,54 @@ EDGE_FUNCTION(edgeGradient)
 EDGE_FUNCTION(edgeDetect)
 
 
-//template<typename SrcImageT,typename TgtImageT>
-//void edgeDetector(const SrcImageT src,TgtImageT& tgt,edge::Kernel type,unsigned windowSize) {
-//   typedef float PrecisionT;
-//   typedef MonochromePixel<PrecisionT> WeightT;
-//   typedef Image<WeightT> KernelT;
-//   if(type == edge::SOBEL) {
-//      KernelT kernelX;
-//      KernelT kernelY;
-//      if(windowSize == 3) sobel3(kernelX,kernelY);
-//      else if(windowSize == 5) sobel5(kernelX,kernelY);
-//      else fail("Sobel Edge Detection only supports windowSize 3 and 5");
-//      edgeDetect(src,kernelX,kernelY,tgt,windowSize);
-//   }
-//   // else... others as time allows
-//}
+template<typename SrcImageT,typename TgtImageT> // maybe predicate?
+void orientedEdgeGradient(const SrcImageT src,TgtImageT& tgt,edge::Kernel type, unsigned windowSize,unsigned channel,float lowBound, float highBound) {
 
+   typedef float PrecisionT;
+   typedef types::Image<types::MonochromePixel<PrecisionT> > KernelT;
+   typedef typename KernelT::pixel_type PixelT;
+   typedef KernelT GradientT;
+   GradientT gradientMag(src.rows(),src.cols());
+   GradientT gradientDir(src.rows(),src.cols());
+   if(type == edge::SOBEL) {
+      KernelT kernelX;
+      KernelT kernelY;
+      if(windowSize == 3) edge::sobel3(kernelX,kernelY);
+      else if(windowSize == 5) edge::sobel5(kernelX,kernelY);
+      else utility::fail("Sobel Edge Detection only supports windowSize 3 and 5");
+      edgeGradientAndDirection(src,kernelX,kernelY,gradientMag,gradientDir,windowSize,channel);
 
-//template<typename SrcImageT,typename TgtImageT,typename PredicateT> // maybe predicate?
-//void orientedEdgeDetector(const SrcImageT src,TgtImageT& tgt,edge::Kernel type, unsigned windowSize,PredicateT orientPredicate) {
-//   TgtImageT edge;
-//   edgeDetector(src,tgt,type,windowSize);
-//
-//   typedef typename KernelT::pixel_type::value_Type PrecisionT;
-//   typedef Image<MonochromePixel<PrecisionT>> GradientT;
-//   if(type == edge::SOBEL) {
-//      KernelT kernelX;
-//      KernelT kernelY;
-//      if(windowSize == 3) sobel3(kernelX,kernelY);
-//      else if(windowSize == 5) sobel5(kernelX,kernelY);
-//      else fail("Sobel Edge Detection only supports windowSize 3 and 5");
-//      edgeDetect(src,kernelX,kernelY,tgt,windowSize);
-//   // 4) Compute direction of gradient - atan(dy/dx)
-//   GradientXYT direction(src.rows(),src.cols());
-//   GradientXYViewT dv(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
-//   std::transform(xv.begin(),xv.end(),yv.begin(),dv.begin(),Q1Direction<PrecisionT>());
-//
-//   }
-//   // else... others as time allows
-//
-//   GradientT gradientM(src.rows(),src.cols());
-//   edgeGradient(src,kernelX,kernelY,gradientM,windowSize);
-//
-//   // TODO: might be nice to select the type of thresholding, we'd like to perform
-//   // the more and more I write this stuff, the more and more that I want to be
-//   // able to support a call graph
-//   otsuBinarize(gradientM,tgt);
-//
-//
-//}
+   }
+
+   highBound *= stdesque::numeric::pi()/180.0;
+   lowBound *= stdesque::numeric::pi()/180.0;
+
+   GradientT mask(src.rows(),src.cols());
+   if(highBound < lowBound) {
+      predicate::IsDisjointBetween<PixelT,PrecisionT> op;
+      op.thresholdLow = highBound;
+      op.thresholdHigh = lowBound;
+      std::transform(gradientDir.begin(),gradientDir.end(),mask.begin(),op);
+   }
+   else {
+      predicate::IsBetween<PixelT,PrecisionT> op;
+      op.thresholdLow = lowBound;
+      op.thresholdHigh = highBound;
+      std::transform(gradientDir.begin(),gradientDir.end(),mask.begin(),op);
+   }
+   std::transform(gradientMag.begin(),gradientMag.end(),mask.begin(),tgt.begin(),predicate::Select<PixelT>());
+}
+
+template<typename SrcImageT,typename TgtImageT> // maybe predicate?
+void orientedEdgeDetect(const SrcImageT src,TgtImageT& tgt,edge::Kernel type, unsigned windowSize,unsigned channel,float lowBound, float highBound) {
+
+   orientedEdgeGradient(src,tgt,type,windowSize,channel,lowBound,highBound);
+
+   // TODO: might be nice to select the type of thresholding, we'd like to perform
+   // the more and more I write this stuff, the more and more that I want to be
+   // able to support a call graph
+   otsuBinarize(tgt,tgt);
+}
 
 } // namespace algorithm
 } // namespace batchIP

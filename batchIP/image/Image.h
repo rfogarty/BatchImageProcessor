@@ -25,7 +25,7 @@ public:
    // colEnd is exclusive (not inclusive of range).
    unsigned colEnd() const { return colBegin() + cols(); }
 
-   std::size_t pixelSize() { return sizeof(PixelT); }
+   //std::size_t pixelSize() { return sizeof(PixelT); }
 };
 
 template<typename PixelT>
@@ -249,8 +249,8 @@ public:
    // it is not safe to perform resize and move as separate functions.
    // Therefore, this function should be called in such a case.
    void resizeAndMove(unsigned rows,unsigned cols,unsigned rowPos,unsigned colPos) {
-      utility::reportIfNotLessThan("rowBegin+mRows",rowPos + rows,mBounds.rows()+1);
-      utility::reportIfNotLessThan("colBegin+mCols",colPos + cols,mBounds.cols()+1);
+      utility::reportIfNotLessThan("rowBegin+mRows",rowPos + rows,mBounds.rowEnd()+1);
+      utility::reportIfNotLessThan("colBegin+mCols",colPos + cols,mBounds.colEnd()+1);
       mRows = rows;
       mCols = cols;
       mSize = rows*cols;
@@ -259,8 +259,8 @@ public:
    }
 
    void resize(unsigned rows,unsigned cols) {
-      utility::reportIfNotLessThan("rows",mRowBegin + rows,mBounds.rows()+1);
-      utility::reportIfNotLessThan("cols",mColBegin + cols,mBounds.cols()+1);
+      utility::reportIfNotLessThan("rows",mRowBegin + rows,mBounds.rowEnd()+1);
+      utility::reportIfNotLessThan("cols",mColBegin + cols,mBounds.colEnd()+1);
       mRows = rows;
       mCols = cols;
       mSize = rows*cols;
@@ -277,21 +277,21 @@ public:
    virtual unsigned colBegin() const { return mColBegin; }
 
    void move(unsigned rowPos,unsigned colPos) {
-      utility::reportIfNotLessThan("rowBegin+mRows",rowPos + mRows,mBounds.rows()+1);
-      utility::reportIfNotLessThan("colBegin+mCols",colPos + mCols,mBounds.cols()+1);
+      utility::reportIfNotLessThan("rowBegin+mRows",rowPos + mRows,mBounds.rowEnd()+1);
+      utility::reportIfNotLessThan("colBegin+mCols",colPos + mCols,mBounds.colEnd()+1);
       mRowBegin = rowPos + mBounds.rowBegin();
       mColBegin = colPos + mBounds.colBegin();
    }
 
    void shiftCol() {
       unsigned colPos = mColBegin + 1;
-      utility::reportIfNotLessThan("colBegin+mCols",colPos + mCols,mBounds.cols()+1);
+      utility::reportIfNotLessThan("colBegin+mCols",colPos + mCols,mBounds.colEnd()+1);
       mColBegin = colPos;
    }
 
    void shiftRow() {
       unsigned rowPos = mRowBegin + 1;
-      utility::reportIfNotLessThan("rowBegin+mRows",rowPos + mRows,mBounds.rows()+1);
+      utility::reportIfNotLessThan("rowBegin+mRows",rowPos + mRows,mBounds.rowEnd()+1);
       mRowBegin = rowPos;
    }
 };
@@ -319,7 +319,7 @@ private:
    unsigned      rowPos;
    unsigned      colPos;
 
-   ImageViewIterator(ImageWindowT* window,unsigned row = 0) :
+   explicit ImageViewIterator(ImageWindowT* window,unsigned row = 0) :
       mImageWindow(window),
       rowPos(row),
       colPos(0)
@@ -337,7 +337,7 @@ public:
    {}
 
    template<typename PixelTT,typename ImageWindowTT>
-   ImageViewIterator(const ImageViewIterator<PixelTT,ImageWindowTT>& that) :
+   explicit ImageViewIterator(const ImageViewIterator<PixelTT,ImageWindowTT>& that) :
       mImageWindow(that.mImageWindow),
       rowPos(that.rowPos),
       colPos(that.colPos)
@@ -789,7 +789,7 @@ private:
    image_view  mDefaultView;
 
 public:
-   Image(unsigned rows = 0,unsigned cols = 0,unsigned padding = 0) :
+   explicit Image(unsigned rows = 0,unsigned cols = 0,unsigned padding = 0) :
       mStore(rows,cols,padding),
       mDefaultView(rows,cols,&mStore,&mStore,padding,padding)
    {}
