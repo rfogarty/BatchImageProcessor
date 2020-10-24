@@ -909,9 +909,9 @@ void scale(const SrcImageT& src, TgtImageT& tgt, float ratio,
 // To be generic this function will convolve one image with another image, whereby
 // the first image is the source and the second image is the kernel
 //
-// Note: output target will be smaller than input source by the kernel parameters: (M-1)x(N-1)
-template<typename SrcImageT,typename KernelT,typename TgtImageT>
-void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned channel) {
+// Note: processed output area will be smaller than input source area by the size of kernel parameters: (M-1)x(N-1)
+template<typename SrcImageT,typename KernelT,typename TgtImageT,typename ValueT>
+void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned channel,ValueT& maxVal) {
 
    utility::reportIfNotLessThan("kernel.rows() < src.rows()",kernel.rows(),src.rows()+1);
    utility::reportIfNotLessThan("kernel.cols() < src.cols()",kernel.cols(),src.cols()+1);
@@ -935,9 +935,8 @@ void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned
    //    will be doing at least twice as much work as is needed (a simple solution may exist for the 3x3 windows,
    //    but a 5x5 Sobel might be a bit more complicated.) Although, this may be all moot, if we instead implement
    //    convolution in the Fourier domain later (which should drastically shrink the convolution complexity).
-   typedef typename TgtImageT::pixel_type::value_type ValueT;
 
-   ValueT maxVal = static_cast<ValueT>(0);
+   maxVal = static_cast<ValueT>(0);
 
    for(unsigned i = 0; i < tgt.rows(); ++i) {
       SrcViewT sview = src.view(kernelRows,kernelCols,i,0);
@@ -951,13 +950,10 @@ void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned
                // are good ones). And lastly, Source is any Pixel type, so we pass channel to determine what coordinate
                // of data we are operating on (most likely channel 2 of HSI or intensity if color, or if source is Grayscale
                // channel 0).
-               // TODO: do I have to worry about scaling the output? as the following does not currently account
-               // for scaling input and output if min/max are different ranges.
-               // TODO: also does the kernel need to be normalized?
                tgtref += sview.pixel(m,n).indexedColor[channel] * kernel.pixel(m,n).namedColor.mono;
             }
          }
-         if(tgtref > maxVal) maxVal = tgtref;
+         if(std::abs(tgtref) > maxVal) maxVal = std::abs(tgtref);
          // This is super ugly but there is no way to shift to and "end" position for the pseudo-iterator sview.
          // If we increment once too many times then we will force an assertion or throw an exception.
          ++j;
@@ -965,12 +961,6 @@ void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned
          else break;
       } 
    }
-
-   // Now we should normalize the entire image by the maxVal.
-   typename TgtImageT::iterator tpos(tgt.begin());
-   typename TgtImageT::iterator tend(tgt.end());
-   for(;tpos != tend;++tpos) tpos->tuple.value0 /= maxVal;
-   
 }
 
 // Function predicates that can be used in std::transform and other expressions
@@ -1110,8 +1100,8 @@ namespace edge {
 } // namespace edge
 
 
-template<typename GradientT,typename SrcImageT,typename KernelT>
-GradientT gradientPartial(const SrcImageT src,const KernelT& kernel,unsigned windowSize,unsigned channel) {
+template<typename GradientT,typename SrcImageT,typename KernelT,typename ValueT>
+GradientT gradientPartial(const SrcImageT src,const KernelT& kernel,unsigned windowSize,unsigned channel,ValueT& maxVal) {
 
    unsigned halfWindowSize = windowSize >> 1u;
    unsigned windowSizeEven = halfWindowSize << 1u;
@@ -1121,7 +1111,7 @@ GradientT gradientPartial(const SrcImageT src,const KernelT& kernel,unsigned win
    GradientT gradient(src.rows(),src.cols());
    GradientViewT gradientView(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven,halfWindowSize,halfWindowSize));
 
-   convolve(src,kernel,gradientView,channel);
+   convolve(src,kernel,gradientView,channel,maxVal);
    return gradient;
 }
 
@@ -1150,11 +1140,21 @@ void edgeGradient(const SrcImageT src,const KernelT& kernelX,const KernelT& kern
 
    typedef typename KernelT::pixel_type::value_type PrecisionT;
    typedef types::Image<types::MonochromePixel<PrecisionT> > GradientT;
+   PrecisionT maxVal1,maxVal2;
+   GradientT gradientX(gradientPartial<GradientT>(src,kernelX,windowSize,channel,maxVal1));
+   GradientT gradientY(gradientPartial<GradientT>(src,kernelY,windowSize,channel,maxVal2));
+   PrecisionT maxVal = std::max(maxVal1,maxVal2);
 
-   GradientT gradientX(gradientPartial<GradientT>(src,kernelX,windowSize,channel));
-   
-   GradientT gradientY(gradientPartial<GradientT>(src,kernelY,windowSize,channel));
-   
+   // TODO: do I have to worry about scaling the output? as the gradientPartial does not currently account
+   // for scaling input and output if min/max are different ranges.
+   // Now we should normalize the entire image by the maxVal.
+   typename GradientT::iterator gxpos(gradientX.begin());
+   typename GradientT::iterator gxend(gradientX.end());
+   for(;gxpos != gxend;++gxpos) gxpos->tuple.value0 /= maxVal;
+   typename GradientT::iterator gypos(gradientY.begin());
+   typename GradientT::iterator gyend(gradientY.end());
+   for(;gypos != gyend;++gypos) gypos->tuple.value0 /= maxVal;
+
    tgt = gradientMagnitude(gradientX,gradientY);
 }
 
@@ -1164,12 +1164,22 @@ void edgeGradientAndDirection(const SrcImageT src,const KernelT& kernelX,const K
    typedef typename KernelT::pixel_type::value_type PrecisionT;
    typedef types::Image<types::MonochromePixel<PrecisionT> > GradientT;
 
-   GradientT gradientX(gradientPartial<GradientT>(src,kernelX,windowSize,channel));
+   PrecisionT maxVal1,maxVal2;
+   GradientT gradientX(gradientPartial<GradientT>(src,kernelX,windowSize,channel,maxVal1));
+   GradientT gradientY(gradientPartial<GradientT>(src,kernelY,windowSize,channel,maxVal2));
+   PrecisionT maxVal = std::max(maxVal1,maxVal2);
 
-   GradientT gradientY(gradientPartial<GradientT>(src,kernelY,windowSize,channel));
+   // TODO: do I have to worry about scaling the output? as the gradientPartial does not currently account
+   // for scaling input and output if min/max are different ranges.
+   // Now we should normalize the entire image by the maxVal.
+   typename GradientT::iterator gxpos(gradientX.begin());
+   typename GradientT::iterator gxend(gradientX.end());
+   for(;gxpos != gxend;++gxpos) gxpos->tuple.value0 /= maxVal;
+   typename GradientT::iterator gypos(gradientY.begin());
+   typename GradientT::iterator gyend(gradientY.end());
+   for(;gypos != gyend;++gypos) gypos->tuple.value0 /= maxVal;
 
    gradientMag = gradientMagnitude(gradientX,gradientY);
-
    gradientDir = gradientDirection(gradientX,gradientY);
 }
 
@@ -1184,46 +1194,6 @@ void edgeDetect(const SrcImageT src,const KernelT& kernelX,const KernelT& kernel
    otsuBinarize(tgt,tgt);
 }
 
-
-
-//template<typename SrcImageT,typename TgtImageT,typename KernelT>
-//void edgeDetector(const SrcImageT src,const KernelT& kernelX,const KernelT& kernelY,
-//                  TgtImageT& tgt,unsigned windowSize) {
-//
-//   typedef typename KernelT::pixel_type::value_Type PrecisionT;
-//   typedef MonochromePixel<PrecisionT> MonoPixelT;
-//   typedef Image<MonoPixelT> GradientXYT;
-//   typedef typename GradientT::view_type GradientXYViewT;
-//
-//   unsigned halfWindowSize = windowSize >> 1;
-//   unsigned windowSizeEven = halfWindowSize << 1;
-//
-//   // 1) Compute dy with kernelY N/S gradient
-//   GradientXYT y(src.rows(),src.cols());
-//   GradientXYViewT yv(y.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
-//   convolve(src,kernelY,yv,windowSize);
-//   // 2) Compute dx with kernelX W/E gradient
-//   GradientXYT x(src.rows(),src.cols());
-//   GradientXYViewT xv(x.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
-//   convolve(src,kernelX,xv,windowSize);
-//   // 3) Compute gradient magnitude - sqrt of sum of the dx,dy squares
-//   GradientXYT gradient(src.rows(),src.cols());
-//   GradientXYViewT gv(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
-//   std::transform(xv.begin(),xv.end(),yv.begin(),gv.begin(),Magnitude<PrecisionT>());
-//   // 4) Compute direction of gradient - atan(dy/dx)
-//   GradientXYT direction(src.rows(),src.cols());
-//   GradientXYViewT dv(gradient.view(src.rows()-windowSizeEven,src.cols()-windowSizeEven),halfWindowSize,halfWindowSize);
-//   std::transform(xv.begin(),xv.end(),yv.begin(),dv.begin(),Q1Direction<PrecisionT>());
-//   // 5) Threshold gradient amplitude
-//   GradientXYT thresh(src.rows(),src.cols());
-//   otsuBinarize(gradient,thresh);
-//   // 6) Filter on Direction. To do this
-//   //    1. First we create selection map
-//   //    2. Second we select the gradient value based on selection map
-//   // TODO: there are a whole lot of parameters that are optionally brought in
-//   //       this function is starting to be a PITA - thinking this should be its own func.
-//   
-//}
 
 #define EDGE_FUNCTION(NAME)                                                                     \
 template<typename SrcImageT,typename TgtImageT>                                                 \

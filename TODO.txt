@@ -24,9 +24,9 @@ DONE ** generate binary edge image by further thresholding the above output usin
         e.g. display only horizontal (0 degrees +/- 10 degree) or (45 degrees +/- 10 degree) edges etc.
 * Utilization of OpenCV [5 points]
  ** replicate first part of this assignment (Sobel) using OpenCV calls and compare performance
- ** utilize Canny module of OpenCV and compare to Sobel results
- ** implement histogram equalization using OpenCV and compare to your histogram stretching implementation
- ** implement Otsu algorithm using OpenCV and compare to your implementation of fixed thresholding.
+DONE ** utilize Canny module of OpenCV and compare to Sobel results
+DONE ** implement histogram equalization using OpenCV and compare to your histogram stretching implementation
+DONE ** implement Otsu algorithm using OpenCV and compare to your implementation of fixed thresholding.
  ** Combine operations by applying histogram equalization only to foreground as determined by Otsu.
 * Advanced Operations [2 points – extra credit]
  ** Implement QR code detection and decoding (see TA instructions)
@@ -57,12 +57,6 @@ DONE  * Apply intensity histogram stretching by applying it to the I-component, 
 DONE  * [extra credit - 1 point] Perform histogram stretching on both I and S components. How about including all three
     I, S and H components? Experiment.
 
-3. Make sure that you have complete report for this assignment (not just few comments).
-
-  * Include input and output images (use several gray level images).
-  * Discuss performance of histogram processing on grey level and color images
-
-
 
 HW#1
 
@@ -90,16 +84,6 @@ DONE   b. Add color binarization option to your image processing toolbox. Let th
       parameter. For color images, consider TC be a distance from user defined color C(CR,CB,CG) in RGB space.
       Set all pixels within TC distance to "red" and the rest to "white". This function should operate within specified
       ROI with different parameters for each ROI. [3 points]
-
-4. Write the report for this assignment
-DONE   a. Create a "readme" file specifying format of the parameter file, describe all parameters and all run options (include
-      in the report).
-DONE   b. Give an example of the parameter file set to process with several images with varying functions and parameters.
-DONE   c. Describe all operations and your implementation.
-DONE   d. Do include input and output example images for each function implemented (use several gray level and color images
-      and at least two different parameters as appropriate, multiple ROIs, etc.)
-DONE   e. Utilize your cell phone or web cam to capture sample images suitable for testing your software
-      discuss results and performance of all operation
 
 
 # Valgrind results (git revision hash: d48eaec8015d75f57e0971d61d07f26cf34046a2)

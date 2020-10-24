@@ -163,16 +163,21 @@ void parseAndRunOperation(const std::string& line) {
          else if(operation == "crop")          process(inputfile,outputfile,operation,line,ss,Crop<ImageT>::make(ss));
          else if(operation == "hist")          process(inputfile,outputfile,operation,line,ss,Histogram<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModify<ImageT>::make(ss));
+         else if(operation == "histEQCV")      process(inputfile,outputfile,operation,line,ss,HistogramEqualizeOCV<ImageT>::make(ss));
          else if(operation == "scale")         process(inputfile,outputfile,operation,line,ss,Scale<ImageT>::make(ss));
          else if(operation == "binarize")      process(inputfile,outputfile,operation,line,ss,Binarize<ImageT>::make(ss));
          else if(operation == "optBinarize")   process(inputfile,outputfile,operation,line,ss,OptimalBinarize<ImageT>::make(ss));
          else if(operation == "otsuBinarize")  process(inputfile,outputfile,operation,line,ss,OtsuBinarize<ImageT>::make(ss));
+         else if(operation == "otsuBinarizeCV") process(inputfile,outputfile,operation,line,ss,OtsuBinarizeOCV<ImageT>::make(ss));
          else if(operation == "binarizeDT")    process(inputfile,outputfile,operation,line,ss,BinarizeDT<ImageT>::make(ss));
          else if(operation == "uniformSmooth") process(inputfile,outputfile,operation,line,ss,UniformSmooth<ImageT>::make(ss));
          else if(operation == "edgeGradient")  process(inputfile,outputfile,operation,line,ss,EdgeGradient<ImageT>::make(ss));
          else if(operation == "edgeDetect")    process(inputfile,outputfile,operation,line,ss,EdgeDetect<ImageT>::make(ss));
          else if(operation == "orientedEdgeGradient")  process(inputfile,outputfile,operation,line,ss,OrientedEdgeGradient<ImageT>::make(ss));
          else if(operation == "orientedEdgeDetect")  process(inputfile,outputfile,operation,line,ss,OrientedEdgeDetect<ImageT>::make(ss));
+         else if(operation == "edgeSobelCV")   process(inputfile,outputfile,operation,line,ss,EdgeSobelOCV<ImageT>::make(ss));
+         else if(operation == "edgeCannyCV")   process(inputfile,outputfile,operation,line,ss,EdgeCannyOCV<ImageT>::make(ss));
+//         else if(operation == "edgeDetectCV")    process(inputfile,outputfile,operation,line,ss,EdgeDetectOCV<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;

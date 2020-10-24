@@ -130,8 +130,7 @@ struct HSIPixel {
       HSI() :
          hue(0),
          saturation(0),
-         intensity(0),
-         alpha(0)
+         intensity(0)
       {}
 #endif
    };
@@ -153,8 +152,7 @@ struct HSIPixel {
       HUE_CHANNEL         = 0,
       SATURATION_CHANNEL, // 1
       INTENSITY_CHANNEL,  // 2
-      ALPHA_CHANNEL,      // 3
-      MAX_CHANNELS        // 4
+      MAX_CHANNELS        // 3
    };
 
    HSIPixel() :
@@ -351,7 +349,7 @@ struct MonochromePixel {
    struct Mono {
       ChannelT mono;
 #if __cplusplus >= 201103L
-      M() :
+      Mono() :
          mono(0)
       {}
 #endif
