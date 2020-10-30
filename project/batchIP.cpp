@@ -178,7 +178,9 @@ void parseAndRunOperation(const std::string& line) {
          else if(operation == "orientedEdgeDetect")  process(inputfile,outputfile,operation,line,ss,OrientedEdgeDetect<ImageT>::make(ss));
          else if(operation == "edgeSobelCV")   process(inputfile,outputfile,operation,line,ss,EdgeSobelOCV<ImageT>::make(ss));
          else if(operation == "edgeCannyCV")   process(inputfile,outputfile,operation,line,ss,EdgeCannyOCV<ImageT>::make(ss));
+#ifdef SUPPORT_QRCODE_DETECT
          else if(operation == "qrDecodeCV")   process(inputfile,outputfile,operation,line,ss,QRDecodeOCV<ImageT>::make(ss));
+#endif
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;

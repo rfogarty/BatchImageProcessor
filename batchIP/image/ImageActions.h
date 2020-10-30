@@ -215,7 +215,9 @@ public:                                                                         
 ONE_ARG_ACTION(Intensity,add,INTENSITY,int)
 ONE_ARG_ACTION(ThresholdEqualizeOCV,thresholdEqualizeOCV,BINARIZE,unsigned)
 ONE_ARG_ACTION(Binarize,binarize,BINARIZE,unsigned)
+#ifdef SUPPORT_QRCODE_DETECT
 ONE_ARG_ACTION(QRDecodeOCV,qrDecodeOCV,QR_DECODE,unsigned)
+#endif
 ONE_ARG_ACTION(UniformSmooth,uniformSmooth,UNIFORM_SMOOTH,unsigned)
 
 

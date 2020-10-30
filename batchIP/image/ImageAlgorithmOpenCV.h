@@ -220,7 +220,7 @@ void thresholdEqualizeOCV(const SrcImageT& src, TgtImageT& tgt,unsigned fgOrBg,
    tgt = io::ocv2native<NativeImageT>(ocvSrc);
 }
 
-
+#ifdef SUPPORT_QRCODE_DETECT
 template<typename SrcImageT,typename TgtImageT>
 void qrDecodeOCV(const SrcImageT& src,TgtImageT& tgt,bool equalize,
       // This ugly bit is an unnamed argument with a default which means it neither
@@ -256,7 +256,7 @@ void qrDecodeOCV(const SrcImageT& src,TgtImageT& tgt,bool equalize,
    }
    tgt = srcEQ;
 }
-
+#endif
 
 } // namespace algorithm
 } // namespace batchIP
