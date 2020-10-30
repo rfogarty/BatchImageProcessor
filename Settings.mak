@@ -1,14 +1,16 @@
 
+
 # include directories
 INCLUDES = -I. -I/usr/local/include $(shell pkg-config --cflags opencv4)
-
+# pkg-config
 LIBS = $(shell pkg-config --libs opencv4)
 
 # compiler
 CC = g++
 #CC = clang++
 
-# standard
+# standard - note as of v0.3 C++03 is no longer supported
+#            due to OpenCV4 reliance on C++11 or newer.
 #CPP_STD = -std=c++03
 CPP_STD = -std=c++11
 #CPP_STD = -std=c++17

@@ -164,6 +164,7 @@ void parseAndRunOperation(const std::string& line) {
          else if(operation == "hist")          process(inputfile,outputfile,operation,line,ss,Histogram<ImageT>::make(ss));
          else if(operation == "histMod")       process(inputfile,outputfile,operation,line,ss,HistogramModify<ImageT>::make(ss));
          else if(operation == "histEQCV")      process(inputfile,outputfile,operation,line,ss,HistogramEqualizeOCV<ImageT>::make(ss));
+         else if(operation == "thresholdEQCV") process(inputfile,outputfile,operation,line,ss,ThresholdEqualizeOCV<ImageT>::make(ss));
          else if(operation == "scale")         process(inputfile,outputfile,operation,line,ss,Scale<ImageT>::make(ss));
          else if(operation == "binarize")      process(inputfile,outputfile,operation,line,ss,Binarize<ImageT>::make(ss));
          else if(operation == "optBinarize")   process(inputfile,outputfile,operation,line,ss,OptimalBinarize<ImageT>::make(ss));
@@ -177,7 +178,7 @@ void parseAndRunOperation(const std::string& line) {
          else if(operation == "orientedEdgeDetect")  process(inputfile,outputfile,operation,line,ss,OrientedEdgeDetect<ImageT>::make(ss));
          else if(operation == "edgeSobelCV")   process(inputfile,outputfile,operation,line,ss,EdgeSobelOCV<ImageT>::make(ss));
          else if(operation == "edgeCannyCV")   process(inputfile,outputfile,operation,line,ss,EdgeCannyOCV<ImageT>::make(ss));
-//         else if(operation == "edgeDetectCV")    process(inputfile,outputfile,operation,line,ss,EdgeDetectOCV<ImageT>::make(ss));
+         else if(operation == "qrDecodeCV")   process(inputfile,outputfile,operation,line,ss,QRDecodeOCV<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;

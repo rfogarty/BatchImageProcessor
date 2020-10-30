@@ -893,18 +893,10 @@ void scale(const SrcImageT& src, TgtImageT& tgt, float ratio,
 }
 
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Experimental
-
 /*-----------------------------------------------------------------------**/
-// Idea of this function is to create a straight forward convolution function
-// using a sliding window. Later methods will attempt to create the convolution
-// function via Fourier Transform (in particular FFT) based convolution.
+// Idea of this function is to create a straight forward (if not naive) convolution function
+// using a sliding window. A refined approach would be to create the fast convolution
+// function via Fourier Transform (in particular FFT).
 //
 // To be generic this function will convolve one image with another image, whereby
 // the first image is the source and the second image is the kernel
@@ -934,7 +926,7 @@ void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned
    //    this solution. For example, the Sobel windows are symmetric, meaning that for a naive solution we
    //    will be doing at least twice as much work as is needed (a simple solution may exist for the 3x3 windows,
    //    but a 5x5 Sobel might be a bit more complicated.) Although, this may be all moot, if we instead implement
-   //    convolution in the Fourier domain later (which should drastically shrink the convolution complexity).
+   //    fast convolution in the Fourier domain later (which should drastically shrink the convolution complexity).
 
    maxVal = static_cast<ValueT>(0);
 
@@ -954,8 +946,10 @@ void convolve(const SrcImageT& src,const KernelT& kernel,TgtImageT& tgt,unsigned
             }
          }
          if(std::abs(tgtref) > maxVal) maxVal = std::abs(tgtref);
-         // This is super ugly but there is no way to shift to and "end" position for the pseudo-iterator sview.
+         // TODO: This is super ugly but there is no way to shift to and "end" position for the pseudo-iterator sview.
          // If we increment once too many times then we will force an assertion or throw an exception.
+         // A much better approach would be to only error if the view data was accessed (much like an iterator
+         // being dereferenced), which would totally avoid this ugly mess. Alas, as time allots...
          ++j;
          if(j < tgt.cols()) sview.shiftCol();
          else break;
@@ -977,7 +971,8 @@ namespace predicate {
    // easy threshold tests can determine if edge is horizontal(N/S) or vertical (E/W)
    // Note: since we are losing information this isn't appropriate to find 
    // NW versus NE diagonal directions (as they are folded on top of one another).
-   // Nor can this type of direction discrimate between N&S or E&W.
+   // Nor can this type of direction discrimate between N&S or E&W. As a result
+   // this predicate for now is being abandoned.
    template<typename T>
    struct Q1Direction { T operator()(T x,T y) { return std::abs(atan(y.tuple.value0/x.tuple.value0)); } };
    
@@ -1195,18 +1190,20 @@ void edgeDetect(const SrcImageT src,const KernelT& kernelX,const KernelT& kernel
 }
 
 
+// TODO: Add SFINAE check for color versus gray sources...
 #define EDGE_FUNCTION(NAME)                                                                     \
 template<typename SrcImageT,typename TgtImageT>                                                 \
-void NAME(const SrcImageT src,TgtImageT& tgt,edge::Kernel type,unsigned windowSize,unsigned channel) { \
+void NAME(const SrcImageT src,TgtImageT& tgt,/*edge::Kernel type,*/unsigned windowSize) {           \
    typedef float PrecisionT;                                                                    \
    typedef types::Image<types::MonochromePixel<PrecisionT> > KernelT;                           \
-   if(type == edge::SOBEL) {                                                                    \
+                                                                                                \
+   /*if(type == edge::SOBEL)*/ {                                                                    \
       KernelT kernelX;                                                                          \
       KernelT kernelY;                                                                          \
       if(windowSize == 3) edge::sobel3(kernelX,kernelY);                                        \
       else if(windowSize == 5) edge::sobel5(kernelX,kernelY);                                   \
       else utility::fail("Sobel Edge Detection only supports windowSize 3 and 5");              \
-      NAME(src,kernelX,kernelY,tgt,windowSize,channel);                                         \
+      NAME(src,kernelX,kernelY,tgt,windowSize,SrcImageT::pixel_type::GRAY_CHANNEL);             \
    }                                                                                            \
    /* else... others as time allows */                                                          \
 }                                                                                               \
@@ -1217,7 +1214,7 @@ EDGE_FUNCTION(edgeDetect)
 
 
 template<typename SrcImageT,typename TgtImageT> // maybe predicate?
-void orientedEdgeGradient(const SrcImageT src,TgtImageT& tgt,edge::Kernel type, unsigned windowSize,unsigned channel,float lowBound, float highBound) {
+void orientedEdgeGradient(const SrcImageT src,TgtImageT& tgt/*,edge::Kernel type*/, unsigned windowSize,float lowBound, float highBound) {
 
    typedef float PrecisionT;
    typedef types::Image<types::MonochromePixel<PrecisionT> > KernelT;
@@ -1225,14 +1222,13 @@ void orientedEdgeGradient(const SrcImageT src,TgtImageT& tgt,edge::Kernel type, 
    typedef KernelT GradientT;
    GradientT gradientMag(src.rows(),src.cols());
    GradientT gradientDir(src.rows(),src.cols());
-   if(type == edge::SOBEL) {
+   /*if(type == edge::SOBEL)*/ {
       KernelT kernelX;
       KernelT kernelY;
       if(windowSize == 3) edge::sobel3(kernelX,kernelY);
       else if(windowSize == 5) edge::sobel5(kernelX,kernelY);
       else utility::fail("Sobel Edge Detection only supports windowSize 3 and 5");
-      edgeGradientAndDirection(src,kernelX,kernelY,gradientMag,gradientDir,windowSize,channel);
-
+      edgeGradientAndDirection(src,kernelX,kernelY,gradientMag,gradientDir,windowSize,PixelT::GRAY_CHANNEL);
    }
 
    highBound *= stdesque::numeric::pi()/180.0;
@@ -1255,9 +1251,9 @@ void orientedEdgeGradient(const SrcImageT src,TgtImageT& tgt,edge::Kernel type, 
 }
 
 template<typename SrcImageT,typename TgtImageT> // maybe predicate?
-void orientedEdgeDetect(const SrcImageT src,TgtImageT& tgt,edge::Kernel type, unsigned windowSize,unsigned channel,float lowBound, float highBound) {
+void orientedEdgeDetect(const SrcImageT src,TgtImageT& tgt/*,edge::Kernel type*/, unsigned windowSize,float lowBound, float highBound) {
 
-   orientedEdgeGradient(src,tgt,type,windowSize,channel,lowBound,highBound);
+   orientedEdgeGradient(src,tgt/*,type*/,windowSize,lowBound,highBound);
 
    // TODO: might be nice to select the type of thresholding, we'd like to perform
    // the more and more I write this stuff, the more and more that I want to be

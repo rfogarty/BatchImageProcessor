@@ -29,9 +29,9 @@ DONE ** implement histogram equalization using OpenCV and compare to your histog
 DONE ** implement Otsu algorithm using OpenCV and compare to your implementation of fixed thresholding.
  ** Combine operations by applying histogram equalization only to foreground as determined by Otsu.
 * Advanced Operations [2 points – extra credit]
- ** Implement QR code detection and decoding (see TA instructions)
- ** Get some QR images using your cell camera under varying light conditions and test your implementation.
- ** Process your images using histogram equalization prior QR reading, does it help, describe the results
+DONE ** Implement QR code detection and decoding (see TA instructions)
+DONE ** Get some QR images using your cell camera under varying light conditions and test your implementation.
+DONE ** Process your images using histogram equalization prior QR reading, does it help, describe the results
 
 
 HW#2

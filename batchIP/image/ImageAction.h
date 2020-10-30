@@ -30,8 +30,10 @@ enum ActionType {
    HISTOGRAM_EQ,
    SELECT_COLOR,
    SELECT_HSI,
+   AFIX_HSI,
    UNIFORM_SMOOTH,
-   EDGE // TODO: possibly support family of edge algorithms
+   EDGE, // TODO: possibly support family of edge algorithms
+   QR_DECODE
 };
 
 ///////////////////////////////////////////////////////////////////////////////

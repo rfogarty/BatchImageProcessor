@@ -6,6 +6,8 @@ A small tool (executable *batchIP*) to study Image Processing algorithms.
 BatchImageProcessor is mostly written as template library to support rapid
 prototyping for different image and pixel formats, processing algorithms, etc.
 
+VERSION=v0.3
+
 ### Directory Structure
 This software currently has the following directory structure:
 
@@ -31,10 +33,15 @@ This software currently has the following directory structure:
 
 ## BUILDING
 
-Requires: Gnu Make and C++ compiler (such as g++ or clang++)
+Requires: Gnu Make, C++ compiler (such as g++ or clang++), and OpenCV4!
+
+Because of the new dependency upon OpenCV4, the build procedure has changed slightly
+in v0.3. The Makefiles will attempt to use the tool pkg-config to load compiler and
+linker flags. However, a new build script (build.sh) is now incorporated to make this
+new requirement transparent.
 
     $ cd project
-    $ make
+    $ build.sh
 
 Default target (all) builds:
 * static library: lib/libbatchIPTools.a
@@ -42,10 +49,9 @@ Default target (all) builds:
 * main tool executable: project/bin/batchIP
 
 
-Notes: Makefile CCFLAGS and CCC arguments may be tweaked to support C++11, different
-debug flags and optimization modes or to use a different compiler. Additionally,
-compiler flags may be set for compiling with AddressSanetizer if available.
-
+Notes: Makefile build flags are now all set in the toplevel Settings.mak file.
+Options in that file can turn on/off debug settings, compiler optimizations,
+warning levels, and advanced options such as compiling with AddressSanetizer.
 
 
 
@@ -104,7 +110,7 @@ identify multiple ROI sections and parameters.
 |-----------------------|---------------|----------|-----------------------------|-----------------------------------------------
 | Intensity             | add           |        1 | <amount     (int)>          | brighten or darken a grayscale image.
 | Binarization          | binarize      |        1 | <threshold  (unsigned)>     | binarize the pixels with the threshold.
-| Crop                  | crop          |        4 | <rowBegin   (unsigned)>     | crop an image based on region
+| Crop[^2]              | crop          |        4 | <rowBegin   (unsigned)>     | crop an image based on region
 |                       |               |          | <colBegin   (unsigned)>     | 
 |                       |               |          | <rows       (unsigned)>     | 
 |                       |               |          | <cols       (unsigned)>     | 
@@ -115,11 +121,24 @@ identify multiple ROI sections and parameters.
 | Histogram[^1]         | hist          |        1 | <type       (unsigned 0,2)> | compute histogram of grayscale intensity; type is 0-linear, 2-log
 | HistogramModify       | histMod       |        2 | <low        (unsigned)>     | histogram stretch values between low and high.
 |                       |               |          | <high       (unsigned)>     | 
-| Resize [^2]           | scale         |        1 | <0.5 or 2.0 (float)>        | double or halve the size of an image.
+| Resize[^2]            | scale         |        1 | <0.5 or 2.0 (float)>        | double or halve the size of an image.
 | Smooth                | uniformSmooth |        1 | <windowSize (odd,unsigned)> | smooth an image using uniform box.
-
-
-
+| Histogram EQ          | histEQCV      |        0 |                             | histogram equalizes (OpenCV) an image.
+| Thresh. Histogram EQ  | thresholdEQCV |        1 | <region (0-fg,1-bg,2-both)> | Otsu threshold, then histogramEQ foreground or background.
+| OtsuBinarization (OCV)| otsuBinarizeCV|        0 |                             | binarize the image with Otsu threshold (OpenCV).
+| EdgeGradientAmplitude | edgeGradient  |        1 | <windowSize (unsigned 3,5)> | Sobel edge gradient magnitude.
+| EdgeGradientDetect    | edgeDetect    |        1 | <windowSize (unsigned 3,5>  | thresholded (Otsu) Sobel edge detection. 
+| OrientedEdgeGradient  | orientedEdgeGradient | 3 | <windowSize (unsigned 3,5)> | oriented Sobel edge gradient
+|                       |               |          | <angle0 (float -180:180)>   |    if angle0 < angle1: angle0< edge < angle1
+|                       |               |          | <angle1 (float -180:180)>   |    if angle0 > angle1: edge < angle1 or angle0 < edge (disjoint compare)
+| OrientedEdgeDetect    | orientedEdgeDetect |   3 | <windowSize (unsigned 3,5)> | thresholded oriented Sobel edge detect
+|                       |               |          | <angle0 (float -180:180)>   |    if angle0 < angle1: angle0 < edge < angle1
+|                       |               |          | <angle1 (float -180:180)>   |    if angle0 > angle1: edge < angle1 or angle0 < edge (disjoint compare)
+| EdgeSobel             | edgeSobelCV   |        1 | <windowSize (unsig 1,3,5,7)>| OpenCV Sobel edge magnitude
+| EdgeCanny             | edgeCannyCV   |        3 | <windowSize (unsig 1,3,5,7)>| OpenCV Canny edge detector
+|                       |               |          | <lowThresh  (double)>       |
+|                       |               |          | <highThresh (double)>       |
+| QRDecode              | qrDecodeCV    |        1 | <histEQ     (bool)>         | OpenCV implementation of QRDecoder
 
 ### Color images (.ppm) 
 
@@ -130,7 +149,7 @@ identify multiple ROI sections and parameters.
 |                       |               |          | <red        (unsigned)>     | 
 |                       |               |          | <green      (unsigned)>     | 
 |                       |               |          | <blue       (unsigned)>     | 
-| Crop                  | crop          |        4 | <rowBegin   (unsigned)>     | crop an image based on region
+| Crop[^2]              | crop          |        4 | <rowBegin   (unsigned)>     | crop an image based on region
 |                       |               |          | <colBegin   (unsigned)>     | 
 |                       |               |          | <rows       (unsigned)>     | 
 |                       |               |          | <cols       (unsigned)>     | 
@@ -149,15 +168,15 @@ identify multiple ROI sections and parameters.
 |                       |               |          | <highS      (unsigned)>     | 
 |                       |               |          | <lowH       (unsigned)>     | 
 |                       |               |          | <highH      (unsigned)>     | 
-| SelectColor[^3]       | selectColor   |        1 | <channel    (unsigned 0-2)> | output one channel of RGB to gray image
-| SelectHSI[^3]         | selectHSI     |        1 | <channel    (unsigned 0-2)> | output one channel of HSI to gray image
+| SelectColor[^2][^3]   | selectColor   |        1 | <channel    (unsigned 0-2)> | output one channel of RGB to gray image
+| SelectHSI[^2][^3]     | selectHSI     |        1 | <channel    (unsigned 0-2)> | output one channel of HSI to gray image
 | AfixAnyHSI            | afixAnyHSI    |        2 | <value      (unsigned)>     | Afix all pixels to a single value for one of H-S-I
 |                       |               |          | <channel    (unsigned 0-2)> | 
 
 
 [^1]: Note, Histogram (hist,histChan) can use the ROI feature, but support just one region.
 
-[^2]: Note, Resize function does not support the ROI feature.
+[^2]: Note, Resize, Crop, SelectColor, and SelectHSI functions do not support the ROI feature.
 
 [^3]: Note, color histogram, selectColor and selectHSI functions require the output to be a grayscale file with suffix .pgm
 

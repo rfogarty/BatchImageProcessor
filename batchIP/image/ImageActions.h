@@ -85,132 +85,294 @@ public:
    }
 };
 
-
-
 template<typename ImageT>
-class Intensity : public Action<ImageT> {
+class Histogram : public Action<ImageT> {
 public:
-   typedef Intensity<ImageT> ThisT;
+   typedef Histogram<ImageT> ThisT;
 
 private:
-   int mAmount;
 
-   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,int amount) const {
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::add(types::roi2view(src,roi),tgtview,amount);
+   unsigned mLogBase;
+   mutable bool mRunOnce;
+
+   void runHist(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned logBase) const {
+      algorithm::histogram(types::roi2view(src,roi),tgt,logBase);
    }
 
    enum { NUM_PARAMETERS = 1 };
 
 public:
-   explicit Intensity(int amount) : mAmount(amount) {}
+   explicit Histogram(unsigned logBase) : mLogBase(logBase), mRunOnce(false) {}
 
-   virtual ~Intensity() {}
+   virtual ~Histogram() {}
 
-   virtual ActionType type() const { return INTENSITY; }
+   virtual ActionType type() const { return HISTOGRAM; }
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    virtual void run(const ImageT& src,ImageT& tgt) const {
-      run(src,tgt,view2roi(src.defaultView()),mAmount);
+      runHist(src,tgt,view2roi(src.defaultView()),mLogBase);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      int amount = utility::parseWord<int>(parameters[0]);
-      run(src,tgt,roi,amount);
+      if(!mRunOnce) {
+         mRunOnce = true;
+         utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+         unsigned logBase = utility::parseWord<unsigned>(parameters[0]);
+         runHist(src,tgt,roi,logBase);
+      }
+      else {
+         utility::fail("Histogram (hist) supports only one ROI (call multiple times or use crop first)!");
+      }
    }
 
-   static Intensity* make(std::istream& ins) {
-      int amount = utility::parseWord<int>(ins);
-      return new Intensity<ImageT>(amount);
+   static Histogram* make(std::istream& ins) {
+      unsigned logBase = utility::parseWord<unsigned>(ins);
+      return new Histogram<ImageT>(logBase);
    }
 };
 
+#define ZERO_ARG_ACTION(NAME,CALL,TYPE)                                                                                                   \
+template<typename ImageT>                                                                                                                 \
+class NAME : public Action<ImageT> {                                                                                                      \
+public:                                                                                                                                   \
+   typedef NAME<ImageT> ThisT;                                                                                                            \
+                                                                                                                                          \
+private:                                                                                                                                  \
+   void runPr(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {                                                   \
+      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);                                                                     \
+      algorithm::CALL(types::roi2view(src,roi),tgtview);                                                                                  \
+   }                                                                                                                                      \
+   enum { NUM_PARAMETERS = 0 };                                                                                                           \
+public:                                                                                                                                   \
+   virtual ~NAME() {}                                                                                                                     \
+                                                                                                                                          \
+   virtual ActionType type() const { return TYPE; }                                                                                       \
+                                                                                                                                          \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                      \
+                                                                                                                                          \
+   virtual void run(const ImageT& src,ImageT& tgt) const {                                                                                \
+      runPr(src,tgt,view2roi(src.defaultView()));                                                                                         \
+   }                                                                                                                                      \
+                                                                                                                                          \
+   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {      \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                \
+      runPr(src,tgt,roi);                                                                                                                 \
+   }                                                                                                                                      \
+                                                                                                                                          \
+   static NAME* make(std::istream& ins) {                                                                                                 \
+      return new NAME<ImageT>();                                                                                                          \
+   }                                                                                                                                      \
+};                                                                                                                                        \
+/* End of ZERO_ARG_ACTION */
 
-#define HISTACTION(NAME,CALL)                                                                                      \
+ZERO_ARG_ACTION(HistogramEqualizeOCV,histogramEqualizeOCV,HISTOGRAM_EQ)
+ZERO_ARG_ACTION(OptimalBinarize,optimalBinarize,BINARIZE)
+ZERO_ARG_ACTION(OtsuBinarize,otsuBinarize,BINARIZE)
+ZERO_ARG_ACTION(OtsuBinarizeOCV,otsuBinarizeOCV,BINARIZE)
+
+
+#define ONE_ARG_ACTION(NAME,CALL,TYPE,VAL0T)                                                                                              \
+template<typename ImageT>                                                                                                                 \
+class NAME : public Action<ImageT> {                                                                                                      \
+public:                                                                                                                                   \
+   typedef NAME<ImageT> ThisT;                                                                                                            \
+                                                                                                                                          \
+private:                                                                                                                                  \
+   VAL0T mVal0;                                                                                                                           \
+                                                                                                                                          \
+   void runPr(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,VAL0T val0) const {                                        \
+      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);                                                                     \
+      algorithm::CALL(types::roi2view(src,roi),tgtview,val0);                                                                             \
+   }                                                                                                                                      \
+   enum { NUM_PARAMETERS = 1 };                                                                                                           \
+public:                                                                                                                                   \
+   NAME(VAL0T val0) : mVal0(val0) {}                                                                                                      \
+                                                                                                                                          \
+   virtual ~NAME() {}                                                                                                                     \
+                                                                                                                                          \
+   virtual ActionType type() const { return TYPE; }                                                                                       \
+                                                                                                                                          \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                      \
+                                                                                                                                          \
+   virtual void run(const ImageT& src,ImageT& tgt) const {                                                                                \
+      runPr(src,tgt,view2roi(src.defaultView()),mVal0);                                                                                   \
+   }                                                                                                                                      \
+                                                                                                                                          \
+   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {      \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                \
+      VAL0T val0 = utility::parseWord<VAL0T>(parameters[0]);                                                                              \
+      runPr(src,tgt,roi,val0);                                                                                                            \
+   }                                                                                                                                      \
+                                                                                                                                          \
+   static NAME* make(std::istream& ins) {                                                                                                 \
+      VAL0T val0 = utility::parseWord<VAL0T>(ins);                                                                                        \
+      return new NAME<ImageT>(val0);                                                                                                      \
+   }                                                                                                                                      \
+};                                                                                                                                        \
+/* End of ZERO_ARG_ACTION */
+
+ONE_ARG_ACTION(Intensity,add,INTENSITY,int)
+ONE_ARG_ACTION(ThresholdEqualizeOCV,thresholdEqualizeOCV,BINARIZE,unsigned)
+ONE_ARG_ACTION(Binarize,binarize,BINARIZE,unsigned)
+ONE_ARG_ACTION(QRDecodeOCV,qrDecodeOCV,QR_DECODE,unsigned)
+ONE_ARG_ACTION(UniformSmooth,uniformSmooth,UNIFORM_SMOOTH,unsigned)
+
+
+#define TWO_ARG_ACTION(NAME,CALL,TYPE,VAL0T,VAL1T)                                                                 \
 template<typename ImageT>                                                                                          \
 class NAME : public Action<ImageT> {                                                                               \
 public:                                                                                                            \
    typedef NAME<ImageT> ThisT;                                                                                     \
 private:                                                                                                           \
-   unsigned mLow;                                                                                                  \
-   unsigned mHigh;                                                                                                 \
+   VAL0T mVal0;                                                                                                    \
+   VAL1T mVal1;                                                                                                    \
                                                                                                                    \
-   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned low, unsigned high) const {  \
+   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,VAL0T val0, VAL1T val1) const {       \
       typename ImageT::image_view tgtview = types::roi2view(tgt,roi);                                              \
-      algorithm::CALL(types::roi2view(src,roi),tgtview,low,high);                                                  \
+      algorithm::CALL(types::roi2view(src,roi),tgtview,val0,val1);                                                 \
    }                                                                                                               \
                                                                                                                    \
    enum { NUM_PARAMETERS = 2 };                                                                                    \
                                                                                                                    \
 public:                                                                                                            \
-   explicit NAME(unsigned low,unsigned high) : mLow(low), mHigh(high) {}                                           \
+   explicit NAME(VAL0T val0,VAL1T val1) : mVal0(val0), mVal1(val1) {}                                              \
                                                                                                                    \
    virtual ~NAME() {}                                                                                              \
                                                                                                                    \
-   virtual ActionType type() const { return HISTOGRAM_MOD; }                                                       \
+   virtual ActionType type() const { return TYPE; }                                                                \
                                                                                                                    \
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                               \
                                                                                                                    \
    virtual void run(const ImageT& src,ImageT& tgt) const {                                                         \
-      run(src,tgt,view2roi(src.defaultView()),mLow,mHigh);                                                         \
+      run(src,tgt,view2roi(src.defaultView()),mVal0,mVal1);                                                        \
    }                                                                                                               \
                                                                                                                    \
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,                              \
                                                   const types::ParameterPack& parameters) const {                  \
       utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());         \
-      unsigned low = utility::parseWord<unsigned>(parameters[0]);                                                  \
-      unsigned high = utility::parseWord<unsigned>(parameters[1]);                                                 \
-      run(src,tgt,roi,low,high);                                                                                   \
+      VAL0T val0 = utility::parseWord<VAL0T>(parameters[0]);                                                       \
+      VAL1T val1 = utility::parseWord<VAL1T>(parameters[1]);                                                       \
+      run(src,tgt,roi,val0,val1);                                                                                  \
    }                                                                                                               \
                                                                                                                    \
    static NAME* make(std::istream& ins) {                                                                          \
-      unsigned low = utility::parseWord<unsigned>(ins);                                                            \
-      unsigned high = utility::parseWord<unsigned>(ins);                                                           \
-      return new NAME<ImageT>(low,high);                                                                           \
+      VAL0T val0 = utility::parseWord<VAL0T>(ins);                                                                 \
+      VAL1T val1 = utility::parseWord<VAL1T>(ins);                                                                 \
+      return new NAME<ImageT>(val0,val1);                                                                          \
    }                                                                                                               \
 };                                                                                                                 \
 /* End of Macro HISTACTION */
 
-HISTACTION(HistogramModify,histogramModify)
-HISTACTION(HistogramModifyRGB,histogramModifyRGB)
-HISTACTION(HistogramModifyIntensity,histogramModifyIntensity)
+TWO_ARG_ACTION(HistogramModify,histogramModify,HISTOGRAM_MOD,unsigned,unsigned)
+TWO_ARG_ACTION(HistogramModifyRGB,histogramModifyRGB,HISTOGRAM_MOD,unsigned,unsigned)
+TWO_ARG_ACTION(HistogramModifyIntensity,histogramModifyIntensity,HISTOGRAM_MOD,unsigned,unsigned)
+TWO_ARG_ACTION(BinarizeDT,binarizeDouble,BINARIZE,unsigned,unsigned)
+TWO_ARG_ACTION(AfixAnyHSI,afixAnyHSI,AFIX_HSI,uint8_t,unsigned)
 
 
-template<typename ImageT>
-class HistogramEqualizeOCV : public Action<ImageT> {
-public:
-   typedef HistogramEqualizeOCV<ImageT> ThisT;
 
-private:
-   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::histogramEqualizeOCV(types::roi2view(src,roi),tgtview);
-   }
+#define ONE_ARG_GRAY_OUT_ACTION(NAME,CALL,TYPE,VAL0T)                                                                                                 \
+template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >                      \
+class NAME : public Action<ImageSrc,ImageTgt> {                                                                                                       \
+public:                                                                                                                                               \
+   typedef Action<ImageSrc,ImageTgt> SuperT;                                                                                                          \
+   typedef NAME<ImageSrc,ImageTgt> ThisT;                                                                                                             \
+   typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
+                                                                                                                                                      \
+private:                                                                                                                                              \
+   VAL0T mVal0;                                                                                                                                       \
+                                                                                                                                                      \
+   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,VAL0T val0) const {                                                  \
+      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
+      algorithm::CALL(types::roi2view(src,roi),tgtview,val0);                                                                                         \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   enum { NUM_PARAMETERS = 1 };                                                                                                                       \
+                                                                                                                                                      \
+public:                                                                                                                                               \
+   explicit NAME(VAL0T val0) : mVal0(val0) {}                                                                                                         \
+                                                                                                                                                      \
+   virtual ~NAME() {}                                                                                                                                 \
+                                                                                                                                                      \
+   virtual ActionType type() const { return TYPE; }                                                                                                   \
+                                                                                                                                                      \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
+      run(src,tgt,view2roi(src.defaultView()),mVal0);                                                                                                 \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
+      VAL0T val0 = utility::parseWord<VAL0T>(parameters[0]);                                                                                          \
+      run(src,tgt,roi,val0);                                                                                                                          \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   static NAME* make(std::istream& ins) {                                                                                                             \
+      VAL0T val0 = utility::parseWord<VAL0T>(ins);                                                                                                    \
+      return new NAME<ImageSrc,ImageTgt>(val0);                                                                                                       \
+   }                                                                                                                                                  \
+};                                                                                                                                                    \
+/* End of ONE_ARG_GRAY_OUT_ACTION */
 
-   enum { NUM_PARAMETERS = 0 };
+ONE_ARG_GRAY_OUT_ACTION(EdgeSobelOCV,edgeSobelOCV,EDGE,unsigned)
+ONE_ARG_GRAY_OUT_ACTION(SelectHSI,selectHSI,SELECT_HSI,unsigned)
+ONE_ARG_GRAY_OUT_ACTION(SelectColor,selectColor,SELECT_COLOR,unsigned)
 
-public:
-   virtual ~HistogramEqualizeOCV() {}
+ONE_ARG_GRAY_OUT_ACTION(EdgeGradient,edgeGradient,EDGE,unsigned)
+ONE_ARG_GRAY_OUT_ACTION(EdgeDetect,edgeDetect,EDGE,unsigned)
 
-   virtual ActionType type() const { return HISTOGRAM_EQ; }
 
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+#define TWO_ARG_GRAY_OUT_ACTION(NAME,CALL,TYPE,VAL0T,VAL1T)                                                                                           \
+template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >                      \
+class NAME : public Action<ImageSrc,ImageTgt> {                                                                                                       \
+public:                                                                                                                                               \
+   typedef Action<ImageSrc,ImageTgt> SuperT;                                                                                                          \
+   typedef NAME<ImageSrc,ImageTgt> ThisT;                                                                                                             \
+   typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
+                                                                                                                                                      \
+private:                                                                                                                                              \
+   VAL0T mVal0; /* TODO: should this use the enum? */                                                                                                 \
+   VAL1T mVal1;                                                                                                                                       \
+                                                                                                                                                      \
+   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,VAL0T val0,VAL1T val1) const {                                       \
+      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
+      algorithm::CALL(types::roi2view(src,roi),tgtview,(algorithm::edge::Kernel)val0,val1);                                                           \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   enum { NUM_PARAMETERS = 2 };                                                                                                                       \
+                                                                                                                                                      \
+public:                                                                                                                                               \
+   NAME(VAL0T val0,VAL1T val1) : mVal0(val0), mVal1(val1) {}                                                                                          \
+                                                                                                                                                      \
+   virtual ~NAME() {}                                                                                                                                 \
+                                                                                                                                                      \
+   virtual ActionType type() const { return TYPE; }                                                                                                   \
+                                                                                                                                                      \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
+      run(src,tgt,view2roi(src.defaultView()),mVal0,mVal1);                                                                                           \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
+      VAL0T val0 = utility::parseWord<VAL0T>(parameters[0]);                                                                                          \
+      VAL1T val1 = utility::parseWord<VAL1T>(parameters[1]);                                                                                          \
+      run(src,tgt,roi,val0,val1);                                                                                                                     \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   static NAME* make(std::istream& ins) {                                                                                                             \
+      VAL0T val0 = utility::parseWord<VAL0T>(ins);                                                                                                    \
+      VAL1T val1 = utility::parseWord<VAL1T>(ins);                                                                                                    \
+      return new NAME<ImageSrc,ImageTgt>(val0,val1);                                                                                                  \
+   }                                                                                                                                                  \
+};                                                                                                                                                    \
+/* End of EDGE_ACTION */
 
-   virtual void run(const ImageT& src,ImageT& tgt) const {
-      run(src,tgt,view2roi(src.defaultView()));
-   }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      run(src,tgt,roi);
-   }
-
-   static HistogramEqualizeOCV* make(std::istream& ins) {
-      return new HistogramEqualizeOCV<ImageT>;
-   }
-};
+//TWO_ARG_GRAY_OUT_ACTION(EdgeGradient,edgeGradient,EDGE,unsigned,unsigned)
+//TWO_ARG_GRAY_OUT_ACTION(EdgeDetect,edgeDetect,EDGE,unsigned,unsigned)
 
 
 template<typename ImageT>
@@ -331,53 +493,6 @@ public:
 };
 
 
-template<typename ImageT>
-class Histogram : public Action<ImageT> {
-public:
-   typedef Histogram<ImageT> ThisT;
-
-private:
-
-   unsigned mLogBase;
-   mutable bool mRunOnce;
-
-   void runHist(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned logBase) const {
-      algorithm::histogram(types::roi2view(src,roi),tgt,logBase);
-   }
-
-   enum { NUM_PARAMETERS = 1 };
-
-public:
-   explicit Histogram(unsigned logBase) : mLogBase(logBase), mRunOnce(false) {}
-
-   virtual ~Histogram() {}
-
-   virtual ActionType type() const { return HISTOGRAM; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageT& src,ImageT& tgt) const {
-      runHist(src,tgt,view2roi(src.defaultView()),mLogBase);
-   }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      if(!mRunOnce) {
-         mRunOnce = true;
-         utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-         unsigned logBase = utility::parseWord<unsigned>(parameters[0]);
-         runHist(src,tgt,roi,logBase);
-      }
-      else {
-         utility::fail("Histogram (hist) supports only one ROI (call multiple times or use crop first)!");
-      }
-   }
-
-   static Histogram* make(std::istream& ins) {
-      unsigned logBase = utility::parseWord<unsigned>(ins);
-      return new Histogram<ImageT>(logBase);
-   }
-};
-
 
 template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
 class HistogramChannel : public Action<ImageSrc,ImageTgt> {
@@ -426,167 +541,6 @@ public:
       unsigned logBase = utility::parseWord<unsigned>(ins);
       unsigned channel = utility::parseWord<unsigned>(ins);
       return new HistogramChannel<ImageSrc,ImageTgt>(logBase,channel);
-   }
-};
-
-
-template<typename ImageT>
-class Binarize : public Action<ImageT> {
-public:
-   typedef Binarize<ImageT> ThisT;
-
-private:
-   unsigned mThreshold;
-
-   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned threshold) const {
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::binarize(types::roi2view(src,roi),tgtview,threshold);
-   }
-
-   enum { NUM_PARAMETERS = 1 };
-
-public:
-   explicit Binarize(unsigned threshold) : mThreshold(threshold) {}
-   
-   virtual ~Binarize() {}
-
-   virtual ActionType type() const { return BINARIZE; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageT& src,ImageT& tgt) const {
-      run(src,tgt,view2roi(src.defaultView()),mThreshold);
-   }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      unsigned threshold = utility::parseWord<unsigned>(parameters[0]);
-      run(src,tgt,roi,threshold);
-   }
-
-   static Binarize* make(std::istream& ins) {
-      unsigned threshold = utility::parseWord<unsigned>(ins);
-      return new Binarize<ImageT>(threshold);
-   }
-};
-
-
-template<typename ImageT>
-class OptimalBinarize : public Action<ImageT> {
-public:
-   typedef OptimalBinarize<ImageT> ThisT;
-
-private:
-
-   void runPr(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::optimalBinarize(types::roi2view(src,roi),tgtview);
-   }
-
-   enum { NUM_PARAMETERS = 0 };
-
-public:
-   virtual ~OptimalBinarize() {}
-
-   virtual ActionType type() const { return BINARIZE; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageT& src,ImageT& tgt) const {
-      runPr(src,tgt,view2roi(src.defaultView()));
-   }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      runPr(src,tgt,roi);
-   }
-
-   static OptimalBinarize* make(std::istream& ins) {
-      return new OptimalBinarize<ImageT>();
-   }
-};
-
-#define ZERO_ARG_ACTION(NAME,CALL,TYPE)                                                                                                   \
-template<typename ImageT>                                                                                                                 \
-class NAME : public Action<ImageT> {                                                                                                      \
-public:                                                                                                                                   \
-   typedef NAME<ImageT> ThisT;                                                                                                            \
-                                                                                                                                          \
-private:                                                                                                                                  \
-   void runPr(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi) const {                                                   \
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);                                                                     \
-      algorithm::CALL(types::roi2view(src,roi),tgtview);                                                                                  \
-   }                                                                                                                                      \
-   enum { NUM_PARAMETERS = 0 };                                                                                                           \
-public:                                                                                                                                   \
-   virtual ~NAME() {}                                                                                                                     \
-                                                                                                                                          \
-   virtual ActionType type() const { return TYPE; }                                                                                       \
-                                                                                                                                          \
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                      \
-                                                                                                                                          \
-   virtual void run(const ImageT& src,ImageT& tgt) const {                                                                                \
-      runPr(src,tgt,view2roi(src.defaultView()));                                                                                         \
-   }                                                                                                                                      \
-                                                                                                                                          \
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {      \
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                \
-      runPr(src,tgt,roi);                                                                                                                 \
-   }                                                                                                                                      \
-                                                                                                                                          \
-   static NAME* make(std::istream& ins) {                                                                                                 \
-      return new NAME<ImageT>();                                                                                                          \
-   }                                                                                                                                      \
-};                                                                                                                                        \
-/* End of ZERO_ARG_ACTION */
-
-ZERO_ARG_ACTION(OtsuBinarize,otsuBinarize,BINARIZE)
-ZERO_ARG_ACTION(OtsuBinarizeOCV,otsuBinarizeOCV,BINARIZE)
-
-template<typename ImageT>
-class BinarizeDT : public Action<ImageT> {
-public:
-   typedef Action<ImageT> SuperT;
-   typedef BinarizeDT<ImageT> ThisT;
-
-private:
-   unsigned mThresholdLow;
-   unsigned mThresholdHigh;
-
-   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned thresholdLow,unsigned thresholdHigh) const {
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::binarizeDouble(types::roi2view(src,roi),tgtview,thresholdLow,thresholdHigh);
-   }
-
-   enum { NUM_PARAMETERS = 2 };
-
-public:
-   BinarizeDT(unsigned thresholdLow,unsigned thresholdHigh) : 
-      mThresholdLow(thresholdLow),
-      mThresholdHigh(thresholdHigh)
-   {}
-
-   virtual ~BinarizeDT() {}
-
-   virtual ActionType type() const { return BINARIZE; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageT& src,ImageT& tgt) const {
-      run(src,tgt,view2roi(src.defaultView()),mThresholdLow,mThresholdHigh);
-   }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      unsigned thresholdLow = utility::parseWord<unsigned>(parameters[0]);
-      unsigned thresholdHigh = utility::parseWord<unsigned>(parameters[1]);
-      run(src,tgt,roi,thresholdLow,thresholdHigh);
-   }
-
-   static BinarizeDT* make(std::istream& ins) {
-      unsigned thresholdLow = utility::parseWord<unsigned>(ins);
-      unsigned thresholdHigh = utility::parseWord<unsigned>(ins);
-      return new BinarizeDT<ImageT>(thresholdLow,thresholdHigh);
    }
 };
 
@@ -643,234 +597,6 @@ public:
 };
 
 
-template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
-class SelectColor : public Action<ImageSrc,ImageTgt> {
-public:
-   typedef Action<ImageSrc,ImageTgt> SuperT;
-   typedef SelectColor<ImageSrc,ImageTgt> ThisT;
-   typedef typename ImageSrc::pixel_type pixel_type;
-
-private:
-   unsigned mChannel;
-
-   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned channel) const {
-      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::selectColor(types::roi2view(src,roi),tgtview,channel);
-   }
-
-   enum { NUM_PARAMETERS = 1 };
-
-public:
-   explicit SelectColor(unsigned channel) : mChannel(channel) {}
-
-   virtual ~SelectColor() {}
-
-   virtual ActionType type() const { return SELECT_COLOR; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {
-      run(src,tgt,view2roi(src.defaultView()),mChannel);
-   }
-
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      unsigned channel = utility::parseWord<unsigned>(parameters[0]);
-      run(src,tgt,roi,channel);
-   }
-
-   static SelectColor* make(std::istream& ins) {
-      unsigned channel = utility::parseWord<unsigned>(ins);
-      return new SelectColor<ImageSrc,ImageTgt>(channel);
-   }
-};
-
-
-template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
-class SelectHSI : public Action<ImageSrc,ImageTgt> {
-public:
-   typedef Action<ImageSrc,ImageTgt> SuperT;
-   typedef SelectHSI<ImageSrc,ImageTgt> ThisT;
-   typedef typename ImageSrc::pixel_type pixel_type;
-
-private:
-   unsigned mChannel;
-
-   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned channel) const {
-      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::selectHSI(types::roi2view(src,roi),tgtview,channel);
-   }
-
-   enum { NUM_PARAMETERS = 1 };
-
-public:
-   explicit SelectHSI(unsigned channel) : mChannel(channel) {}
-
-   virtual ~SelectHSI() {}
-
-   virtual ActionType type() const { return SELECT_HSI; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {
-      run(src,tgt,view2roi(src.defaultView()),mChannel);
-   }
-
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      unsigned channel = utility::parseWord<unsigned>(parameters[0]);
-      run(src,tgt,roi,channel);
-   }
-
-   static SelectHSI* make(std::istream& ins) {
-      unsigned channel = utility::parseWord<unsigned>(ins);
-      return new SelectHSI<ImageSrc,ImageTgt>(channel);
-   }
-};
-
-
-template<typename ImageT>
-class AfixAnyHSI : public Action<ImageT> {
-public:
-   typedef Action<ImageT> SuperT;
-   typedef AfixAnyHSI<ImageT> ThisT;
-   typedef typename ImageT::pixel_type pixel_type;
-
-private:
-   uint8_t  mValue;
-   unsigned mChannel;
-
-   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,uint8_t value,unsigned channel) const {
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::afixAnyHSI(types::roi2view(src,roi),tgtview,value,channel);
-   }
-
-   enum { NUM_PARAMETERS = 2 };
-
-public:
-   AfixAnyHSI(uint8_t value,unsigned channel) : mValue(value),mChannel(channel) {}
-
-   virtual ~AfixAnyHSI() {}
-
-   virtual ActionType type() const { return SELECT_HSI; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageT& src,ImageT& tgt) const {
-      run(src,tgt,view2roi(src.defaultView()),mValue,mChannel);
-   }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      uint8_t value = (uint8_t)utility::parseWord<unsigned>(parameters[0]);
-      unsigned channel = utility::parseWord<unsigned>(parameters[1]);
-      run(src,tgt,roi,value,channel);
-   }
-
-   static AfixAnyHSI* make(std::istream& ins) {
-      uint8_t value = (uint8_t)utility::parseWord<unsigned>(ins);
-      unsigned channel = utility::parseWord<unsigned>(ins);
-      return new AfixAnyHSI<ImageT>(value,channel);
-   }
-};
-
-
-
-template<typename ImageT>
-class UniformSmooth : public Action<ImageT> {
-public:
-   typedef UniformSmooth<ImageT> ThisT;
-
-private:
-   unsigned mWindowSize;
-
-   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned windowSize) const {
-      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);
-      algorithm::uniformSmooth(types::roi2view(src,roi),tgtview,windowSize);
-   }
-
-   enum { NUM_PARAMETERS = 1 };
-
-public:
-   explicit UniformSmooth(unsigned windowSize) : mWindowSize(windowSize) {}
-   
-   virtual ~UniformSmooth() {}
-
-   virtual ActionType type() const { return UNIFORM_SMOOTH; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageT& src,ImageT& tgt) const {
-      run(src,tgt,view2roi(src.defaultView()),mWindowSize);
-   }
-
-   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-      unsigned windowSize = utility::parseWord<unsigned>(parameters[0]);
-      run(src,tgt,roi,windowSize);
-   }
-
-   static UniformSmooth* make(std::istream& ins) {
-      unsigned windowSize = utility::parseWord<unsigned>(ins);
-      return new UniformSmooth<ImageT>(windowSize);
-   }
-};
-
-
-#define EDGE_ACTION(NAME,ALGO)                                                                                                                        \
-template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >                      \
-class NAME : public Action<ImageSrc,ImageTgt> {                                                                                                       \
-public:                                                                                                                                               \
-   typedef Action<ImageSrc,ImageTgt> SuperT;                                                                                                          \
-   typedef NAME<ImageSrc,ImageTgt> ThisT;                                                                                                             \
-   typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
-                                                                                                                                                      \
-private:                                                                                                                                              \
-   unsigned mChannel;    /* TODO: this is stupid as a parameter for Grayscale stuff */                                                                \
-   unsigned mKernelType; /* TODO: should this use the enum? */                                                                                        \
-   unsigned mWindowSize;                                                                                                                              \
-                                                                                                                                                      \
-   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned channel,unsigned kernelType,unsigned windowSize) const {    \
-      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
-      algorithm::ALGO(types::roi2view(src,roi),tgtview,(algorithm::edge::Kernel)kernelType,windowSize,channel);                                       \
-   }                                                                                                                                                  \
-                                                                                                                                                      \
-   enum { NUM_PARAMETERS = 3 };                                                                                                                       \
-                                                                                                                                                      \
-public:                                                                                                                                               \
-   NAME(unsigned channel,unsigned kernel,unsigned windowSize) : mChannel(channel),mKernelType(kernel), mWindowSize(windowSize) {}                     \
-                                                                                                                                                      \
-   virtual ~NAME() {}                                                                                                                                 \
-                                                                                                                                                      \
-   virtual ActionType type() const { return EDGE; }                                                                                                   \
-                                                                                                                                                      \
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
-                                                                                                                                                      \
-   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
-      run(src,tgt,view2roi(src.defaultView()),mChannel,mKernelType,mWindowSize);                                                                      \
-   }                                                                                                                                                  \
-                                                                                                                                                      \
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
-      unsigned channel = utility::parseWord<unsigned>(parameters[0]);                                                                                 \
-      unsigned kernel = utility::parseWord<unsigned>(parameters[1]);                                                                                  \
-      unsigned windowSize = utility::parseWord<unsigned>(parameters[2]);                                                                              \
-      run(src,tgt,roi,channel,kernel,windowSize);                                                                                                     \
-   }                                                                                                                                                  \
-                                                                                                                                                      \
-   static NAME* make(std::istream& ins) {                                                                                                             \
-      unsigned channel = utility::parseWord<unsigned>(ins);                                                                                           \
-      unsigned kernel = utility::parseWord<unsigned>(ins);                                                                                            \
-      unsigned windowSize = utility::parseWord<unsigned>(ins);                                                                                        \
-      return new NAME<ImageSrc,ImageTgt>(channel,kernel,windowSize);                                                                                  \
-   }                                                                                                                                                  \
-};                                                                                                                                                    \
-/* End of EDGE_ACTION */
-
-EDGE_ACTION(EdgeGradient,edgeGradient)
-EDGE_ACTION(EdgeDetect,edgeDetect)
-
-
 #define ORIENTED_EDGE_ACTION(NAME,ALGO)                                                                                                               \
 template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >                      \
 class NAME : public Action<ImageSrc,ImageTgt> {                                                                                                       \
@@ -880,23 +606,22 @@ public:                                                                         
    typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
                                                                                                                                                       \
 private:                                                                                                                                              \
-   unsigned mChannel;   /* TODO: this is stupid as a parameter for Grayscale stuff */                                                                 \
-   unsigned mKernelType; /* TODO: should this use the enum? */                                                                                        \
+   /*unsigned mKernelType; */ /* TODO: should this use the enum? */                                                                                        \
    unsigned mWindowSize;                                                                                                                              \
    float mLowBound;                                                                                                                                   \
    float mHighBound;                                                                                                                                  \
                                                                                                                                                       \
-   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned channel,unsigned kernelType,unsigned windowSize,            \
+   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi/*,unsigned kernelType*/,unsigned windowSize,                             \
             float lowBound,float highBound) const {                                                                                                   \
       typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
-      algorithm::ALGO(types::roi2view(src,roi),tgtview,(algorithm::edge::Kernel)kernelType,windowSize,channel,lowBound,highBound);                    \
+      algorithm::ALGO(types::roi2view(src,roi),tgtview/*,(algorithm::edge::Kernel)kernelType*/,windowSize,lowBound,highBound);                            \
    }                                                                                                                                                  \
                                                                                                                                                       \
-   enum { NUM_PARAMETERS = 5 };                                                                                                                       \
+   enum { NUM_PARAMETERS = 3 };                                                                                                                       \
                                                                                                                                                       \
 public:                                                                                                                                               \
-   NAME(unsigned channel,unsigned kernel,unsigned windowSize,                                                                                         \
-        float lowBound,float highBound) : mChannel(channel),mKernelType(kernel),mWindowSize(windowSize),mLowBound(lowBound),mHighBound(highBound) {}  \
+   NAME(/*unsigned kernel,*/unsigned windowSize,float lowBound,float highBound) :                                                                         \
+      /*mKernelType(kernel),*/mWindowSize(windowSize),mLowBound(lowBound),mHighBound(highBound) {}                                                        \
                                                                                                                                                       \
    virtual ~NAME() {}                                                                                                                                 \
                                                                                                                                                       \
@@ -905,26 +630,24 @@ public:                                                                         
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
                                                                                                                                                       \
    virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
-      run(src,tgt,view2roi(src.defaultView()),mChannel,mKernelType,mWindowSize,mLowBound,mHighBound);                                                 \
+      run(src,tgt,view2roi(src.defaultView())/*,mKernelType*/,mWindowSize,mLowBound,mHighBound);                                                          \
    }                                                                                                                                                  \
                                                                                                                                                       \
    virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
       utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
-      unsigned channel = utility::parseWord<unsigned>(parameters[0]);                                                                                 \
-      unsigned kernel = utility::parseWord<unsigned>(parameters[1]);                                                                                  \
-      unsigned windowSize = utility::parseWord<unsigned>(parameters[2]);                                                                              \
-      float lowBound = utility::parseWord<float>(parameters[3]);                                                                                      \
-      float highBound = utility::parseWord<float>(parameters[4]);                                                                                     \
-      run(src,tgt,roi,channel,kernel,windowSize,lowBound,highBound);                                                                                  \
+      /*unsigned kernel = utility::parseWord<unsigned>(parameters[0]); */                                                                                 \
+      unsigned windowSize = utility::parseWord<unsigned>(parameters[0]);                                                                              \
+      float lowBound = utility::parseWord<float>(parameters[1]);                                                                                      \
+      float highBound = utility::parseWord<float>(parameters[2]);                                                                                     \
+      run(src,tgt,roi/*,kernel*/,windowSize,lowBound,highBound);                                                                                          \
    }                                                                                                                                                  \
                                                                                                                                                       \
    static NAME* make(std::istream& ins) {                                                                                                             \
-      unsigned channel = utility::parseWord<unsigned>(ins);                                                                                           \
-      unsigned kernel = utility::parseWord<unsigned>(ins);                                                                                            \
+      /*unsigned kernel = utility::parseWord<unsigned>(ins);*/                                                                                            \
       unsigned windowSize = utility::parseWord<unsigned>(ins);                                                                                        \
       float lowBound = utility::parseWord<float>(ins);                                                                                                \
       float highBound = utility::parseWord<float>(ins);                                                                                               \
-      return new NAME<ImageSrc,ImageTgt>(channel,kernel,windowSize,lowBound,highBound);                                                               \
+      return new NAME<ImageSrc,ImageTgt>(/*kernel,*/windowSize,lowBound,highBound);                                                                       \
    }                                                                                                                                                  \
 };                                                                                                                                                    \
 /* End of EDGE_ACTION */
@@ -932,53 +655,6 @@ public:                                                                         
 ORIENTED_EDGE_ACTION(OrientedEdgeGradient,orientedEdgeGradient)
 ORIENTED_EDGE_ACTION(OrientedEdgeDetect,orientedEdgeDetect)
 
-
-
-#define OCV_EDGE_ACTION(NAME,ALGO)                                                                                                                    \
-template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >                      \
-class NAME : public Action<ImageSrc,ImageTgt> {                                                                                                       \
-public:                                                                                                                                               \
-   typedef Action<ImageSrc,ImageTgt> SuperT;                                                                                                          \
-   typedef NAME<ImageSrc,ImageTgt> ThisT;                                                                                                             \
-   typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
-                                                                                                                                                      \
-private:                                                                                                                                              \
-   unsigned mWindowSize;                                                                                                                              \
-                                                                                                                                                      \
-   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned windowSize) const {                                         \
-      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
-      algorithm::ALGO(types::roi2view(src,roi),tgtview,windowSize);                                                                                   \
-   }                                                                                                                                                  \
-                                                                                                                                                      \
-   enum { NUM_PARAMETERS = 1 };                                                                                                                       \
-                                                                                                                                                      \
-public:                                                                                                                                               \
-   NAME(unsigned windowSize) : mWindowSize(windowSize) {}                                                                                             \
-                                                                                                                                                      \
-   virtual ~NAME() {}                                                                                                                                 \
-                                                                                                                                                      \
-   virtual ActionType type() const { return EDGE; }                                                                                                   \
-                                                                                                                                                      \
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
-                                                                                                                                                      \
-   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
-      run(src,tgt,view2roi(src.defaultView()),mWindowSize);                                                                                           \
-   }                                                                                                                                                  \
-                                                                                                                                                      \
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
-      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
-      unsigned windowSize = utility::parseWord<unsigned>(parameters[2]);                                                                              \
-      run(src,tgt,roi,windowSize);                                                                                                                    \
-   }                                                                                                                                                  \
-                                                                                                                                                      \
-   static NAME* make(std::istream& ins) {                                                                                                             \
-      unsigned windowSize = utility::parseWord<unsigned>(ins);                                                                                        \
-      return new NAME<ImageSrc,ImageTgt>(windowSize);                                                                                                 \
-   }                                                                                                                                                  \
-};                                                                                                                                                    \
-/* End of EDGE_ACTION */
-
-OCV_EDGE_ACTION(EdgeSobelOCV,edgeSobelOCV)
 
 
 template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
