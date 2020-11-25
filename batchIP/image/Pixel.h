@@ -399,8 +399,12 @@ struct MonochromePixel {
    }
 
    // explicit conversion from RGBAPixel channel
-   template<unsigned channel,template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
-   explicit MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& rgba);
+   template<template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
+   MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& rgba,unsigned channel);
+
+   // explicit conversion from RGBAPixel channel
+   template<template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
+   MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& mono);
 };
 
 template<typename ChannelT,typename ChannelTraitsT>
@@ -420,12 +424,18 @@ MonochromePixel<ChannelT,ChannelTraitsT>::operator GrayAlphaPixel<ChannelTT,Chan
 
 
 template<typename ChannelT,typename ChannelTraitsT>
-template<unsigned channel,template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
-MonochromePixel<ChannelT,ChannelTraitsT>::MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& pixel) :
+template<template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
+MonochromePixel<ChannelT,ChannelTraitsT>::MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& pixel,unsigned channel) :
    namedColor() {
    channel2mono(pixel,*this,channel);
 }
 
+template<typename ChannelT,typename ChannelTraitsT>
+template<template<typename,typename> class PixelT,typename ChannelTT,typename ChannelTTTraits>
+MonochromePixel<ChannelT,ChannelTraitsT>::MonochromePixel(const PixelT<ChannelTT,ChannelTTTraits>& pixel) :
+   namedColor() {
+   channel2mono(pixel, *this, GRAY_CHANNEL);
+}
 
 template <class T> struct is_monochrome                      : public std::false_type{};
 template <class T> struct is_monochrome<const T >            : public is_monochrome<T>{};

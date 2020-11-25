@@ -181,16 +181,15 @@ void parseAndRunOperation(const std::string& line) {
 #ifdef SUPPORT_QRCODE_DETECT
          else if(operation == "qrDecodeCV")    process(inputfile,outputfile,operation,line,ss,QRDecodeOCV<ImageT>::make(ss));
 #endif
-         //else if(operation == "dftFilter")     process(inputfile,outputfile,operation,line,ss,DFTFilter<ImageT>::make(ss));
-         else if(operation == "powerSpectrum")  process(inputfile,outputfile,operation,line,ss,PowerSpectrum<ImageT>::make(ss));
-         else if(operation == "filterResp")     process(inputfile,outputfile,operation,line,ss,FilterResponse<ImageT>::make(ss));
-         else if(operation == "filter")         process(inputfile,outputfile,operation,line,ss,Filter<ImageT>::make(ss));
-         else if(operation == "lpFilterResp")   process(inputfile,outputfile,operation,line,ss,LPFilterResponse<ImageT>::make(ss));
-         else if(operation == "hpFilterResp")   process(inputfile,outputfile,operation,line,ss,HPFilterResponse<ImageT>::make(ss));
-         else if(operation == "bpFilterResp")   process(inputfile,outputfile,operation,line,ss,BPFilterResponse<ImageT>::make(ss));
-         else if(operation == "lpFilter")       process(inputfile,outputfile,operation,line,ss,LPFilter<ImageT>::make(ss));
-         else if(operation == "hpFilter")       process(inputfile,outputfile,operation,line,ss,HPFilter<ImageT>::make(ss));
-         else if(operation == "bpFilter")       process(inputfile,outputfile,operation,line,ss,BPFilter<ImageT>::make(ss));
+         else if(operation == "powerSpectrum") process(inputfile,outputfile,operation,line,ss,PowerSpectrum<ImageT>::make(ss));
+         else if(operation == "filterResp")    process(inputfile,outputfile,operation,line,ss,FilterResponse<ImageT>::make(ss));
+         else if(operation == "filter")        process(inputfile,outputfile,operation,line,ss,Filter<ImageT>::make(ss));
+         else if(operation == "lpFilterResp")  process(inputfile,outputfile,operation,line,ss,LPFilterResponse<ImageT>::make(ss));
+         else if(operation == "hpFilterResp")  process(inputfile,outputfile,operation,line,ss,HPFilterResponse<ImageT>::make(ss));
+         else if(operation == "bpFilterResp")  process(inputfile,outputfile,operation,line,ss,BPFilterResponse<ImageT>::make(ss));
+         else if(operation == "lpFilter")      process(inputfile,outputfile,operation,line,ss,LPFilter<ImageT>::make(ss));
+         else if(operation == "hpFilter")      process(inputfile,outputfile,operation,line,ss,HPFilter<ImageT>::make(ss));
+         else if(operation == "bpFilter")      process(inputfile,outputfile,operation,line,ss,BPFilter<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;
@@ -221,14 +220,15 @@ void parseAndRunOperation(const std::string& line) {
          else if(operation == "selectColor")   process(inputfile,outputfile,operation,line,ss,SelectColor<ImageT>::make(ss));
          else if(operation == "selectHSI")     process(inputfile,outputfile,operation,line,ss,SelectHSI<ImageT>::make(ss));
          else if(operation == "afixAnyHSI")    process(inputfile,outputfile,operation,line,ss,AfixAnyHSI<ImageT>::make(ss));
+         else if(operation == "powerSpectrum") process(inputfile,outputfile,operation,line,ss,PowerSpectrum<ImageT>::make(ss));
          else if(operation == "filterResp")    process(inputfile,outputfile,operation,line,ss,FilterResponse<ImageT>::make(ss));
          else if(operation == "filter")        process(inputfile,outputfile,operation,line,ss,Filter<ImageT>::make(ss));
-         else if(operation == "lpFilterResp")   process(inputfile,outputfile,operation,line,ss,LPFilterResponse<ImageT>::make(ss));
-         else if(operation == "hpFilterResp")   process(inputfile,outputfile,operation,line,ss,HPFilterResponse<ImageT>::make(ss));
-         else if(operation == "bpFilterResp")   process(inputfile,outputfile,operation,line,ss,BPFilterResponse<ImageT>::make(ss));
-         else if(operation == "lpFilter")       process(inputfile,outputfile,operation,line,ss,LPFilter<ImageT>::make(ss));
-         else if(operation == "hpFilter")       process(inputfile,outputfile,operation,line,ss,HPFilter<ImageT>::make(ss));
-         else if(operation == "bpFilter")       process(inputfile,outputfile,operation,line,ss,BPFilter<ImageT>::make(ss));
+         else if(operation == "lpFilterResp")  process(inputfile,outputfile,operation,line,ss,LPFilterResponse<ImageT>::make(ss));
+         else if(operation == "hpFilterResp")  process(inputfile,outputfile,operation,line,ss,HPFilterResponse<ImageT>::make(ss));
+         else if(operation == "bpFilterResp")  process(inputfile,outputfile,operation,line,ss,BPFilterResponse<ImageT>::make(ss));
+         else if(operation == "lpFilter")      process(inputfile,outputfile,operation,line,ss,LPFilter<ImageT>::make(ss));
+         else if(operation == "hpFilter")      process(inputfile,outputfile,operation,line,ss,HPFilter<ImageT>::make(ss));
+         else if(operation == "bpFilter")      process(inputfile,outputfile,operation,line,ss,BPFilter<ImageT>::make(ss));
          else {
             std::cerr << "Unknown operation: " << operation << std::endl;
             return;

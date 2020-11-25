@@ -33,7 +33,10 @@ enum ActionType {
    AFIX_HSI,
    UNIFORM_SMOOTH,
    EDGE, // TODO: possibly support family of edge algorithms
-   QR_DECODE
+   QR_DECODE,
+   POWER_SPECTUM,
+   FILTER_RESP,
+   FILTER
 };
 
 ///////////////////////////////////////////////////////////////////////////////

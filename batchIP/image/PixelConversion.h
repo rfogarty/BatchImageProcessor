@@ -8,6 +8,13 @@
 #include <ostream>
 
 namespace batchIP {
+
+template<typename T>
+T unitClamp(T v) {
+   return std::max((T)0,std::min((T)1,v));
+}
+
+
 namespace types {
 
 template<typename ChannelT,typename ChannelTTraits> struct RGBAPixel;
@@ -32,9 +39,9 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    double sumRGB = (double)rgba.namedColor.red 
                  + (double)rgba.namedColor.green 
                  + (double)rgba.namedColor.blue;
-   double r = sumRGB != 0 ? (double)rgba.namedColor.red/sumRGB : 0.0;
-   double g = sumRGB != 0 ? (double)rgba.namedColor.green/sumRGB : 0.0;
-   double b = sumRGB != 0 ? (double)rgba.namedColor.blue/sumRGB : 0.0;
+   double r = sumRGB > 0.0 ? (double)rgba.namedColor.red/sumRGB : 0.0;
+   double g = sumRGB > 0.0 ? (double)rgba.namedColor.green/sumRGB : 0.0;
+   double b = sumRGB > 0.0 ? (double)rgba.namedColor.blue/sumRGB : 0.0;
 
    double numerator = 0.5 * ((r - g) + (r - b));
    double denominator = std::sqrt((r-g)*(r-g) + (r-b)*(g-b));
@@ -53,7 +60,13 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    h /= stdesque::numeric::twoPi();
 
    // Because rgb are normalized by their sum
-   double s = 1.0 - 3.0*std::min(r,std::min(g,b));
+   // Kludge, if we habe a really dark color whose intensity changes drastically
+   // we will have a significant chroma distortion issue, in the very lowest color
+   // values less than 1.0%, force saturation to zero.
+   // In general I don't like this definition of saturation - I think it should
+   // instead be related to the difference of the max and min value.
+   double s = sumRGB > 0.01 ? 1.0 - 3.0*std::min(r,std::min(g,b)) : 0.0;
+   // Let's force saturation to 0.0 if we are block.
    double i = sumRGB/(3*ChannelT1Traits::max());
 
    hsi.namedColor.hue = static_cast<ChannelT2>(h);
@@ -107,11 +120,11 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
    if(stdesque::numeric::twoThirds() < i) s *= (2.0/i - 2.0);
    
    double h120 = (h < stdesque::numeric::twoThirdsPi()) ? h : ((h < stdesque::numeric::fourThirdsPi()) ? (h - stdesque::numeric::twoThirdsPi()) : (h - stdesque::numeric::fourThirdsPi()) );
-
-   double x = i * (1.0 - s);
    double invHue = std::cos(h120) /
                    std::cos(stdesque::numeric::oneThirdsPi() - h120);
-   double y = i * (1.0 +  s * invHue);
+#if 0
+   double x = i * (1.0 - s);
+   double y = i * (1.0 + s * invHue);
    
    // Due to numeric imprecision, in some cases, factor y
    // can exceed 1.0. If we do not compensate for that the color
@@ -120,16 +133,36 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
    // saturation that satisfies a bounded y, and then also recompute
    // x given the new saturation.
    if(y > 1.0) {
+      std::cout << "WARNING: y( > 1.0)=" << y << " x=" << x << " i=" << i  << " s=" << s << " h=" << h << " h120=" << h120 << " invHue=" << invHue << std::endl;
       // Solve for s that would make y = 1.0
       // so that variables x and z will also be
       // compensated properly.
       y = 1.0;
-      s = (y/i - 1.0)/invHue;
+      s = unitClamp((y/i - 1.0)/invHue);
+      x = i * (1.0 - s);
+      std::cout << "WARNING: y        =" << y << " x=" << x << " i=" << i  << " s=" << s << " h=" << h << " h120=" << h120 << " invHue=" << invHue << std::endl;
+   }
+   else if(y < 0.0) {
+      std::cout << "WARNING: y( < 0.0)=" << y << " x=" << x << " i=" << i  << " s=" << s << " h=" << h << " h120=" << h120 << " invHue=" << invHue << std::endl;
+      // Solve for s that would make y = 1.0
+      // so that variables x and z will also be
+      // compensated properly.
+      y = 0.0;
+      s = unitClamp((y/i - 1.0)/invHue);
       x = i * (1.0 - s);
    }
    // Kludge: yet another numerical issue can put z greater than 1.0
    // so we clip any value above 1.0.
-   double z = std::min(1.0,std::max(3.0*i - (x + y),0.0));
+   x = unitClamp(x);
+   double z = unitClamp(3.0*i - (x + y));
+#else
+   double x = stdesque::numeric::oneThirds()*(1.0 - s);
+   double y = stdesque::numeric::oneThirds()*(1.0 + s*invHue);
+   double z = 1.0 - x - y;
+   x = unitClamp(3.0*i*x);
+   y = unitClamp(3.0*i*y);
+   z = unitClamp(3.0*i*z);
+#endif
 
    if(h < stdesque::numeric::twoThirdsPi()) assignRGB(rgba,y,z,x);
    else if(h < stdesque::numeric::fourThirdsPi()) assignRGB(rgba,x,y,z);
@@ -140,9 +173,23 @@ void hsi2rgba(const HSIPixel<ChannelT1,ChannelT1Traits>& hsi,
 template<typename ChannelT1,typename ChannelT1Traits,
          typename ChannelT2,typename ChannelT2Traits>
 void gray2rgba(const GrayAlphaPixel<ChannelT1,ChannelT1Traits>& gray,
-               RGBAPixel<ChannelT2,ChannelT2Traits>& rgba) {
+               RGBAPixel<ChannelT2,ChannelT2Traits>& rgba,
+               typename std::enable_if<std::is_integral<typename ChannelT2Traits::value_type>::value,int>::type* = 0) {
 
-   double grayNorm = (double)gray.namedColor.gray / (double)ChannelT1Traits::max();
+   double grayNorm = (double)gray.namedColor.gray * ChannelT1Traits::invmax();
+   ChannelT2 rescaled = static_cast<ChannelT2>(std::round(grayNorm * ChannelT2Traits::max()));
+   rgba.namedColor.red = rescaled;
+   rgba.namedColor.green = rescaled;
+   rgba.namedColor.blue = rescaled;
+}
+
+template<typename ChannelT1,typename ChannelT1Traits,
+      typename ChannelT2,typename ChannelT2Traits>
+void gray2rgba(const GrayAlphaPixel<ChannelT1,ChannelT1Traits>& gray,
+               RGBAPixel<ChannelT2,ChannelT2Traits>& rgba,
+               typename std::enable_if<!std::is_integral<typename ChannelT2Traits::value_type>::value,int>::type* = 0) {
+
+   double grayNorm = (double)gray.namedColor.gray * ChannelT1Traits::invmax();
    ChannelT2 rescaled = static_cast<ChannelT2>(grayNorm * ChannelT2Traits::max());
    rgba.namedColor.red = rescaled;
    rgba.namedColor.green = rescaled;
@@ -152,26 +199,55 @@ void gray2rgba(const GrayAlphaPixel<ChannelT1,ChannelT1Traits>& gray,
 template<typename ChannelT1,typename ChannelT1Traits,
          typename ChannelT2,typename ChannelT2Traits>
 void rgba2gray(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
-               GrayAlphaPixel<ChannelT2,ChannelT2Traits>& gray) {
+               GrayAlphaPixel<ChannelT2,ChannelT2Traits>& gray,
+               typename std::enable_if<std::is_integral<typename ChannelT2Traits::value_type>::value,int>::type* = 0) {
 
    double grayNorm =
      ((double)rgba.namedColor.red +
       (double)rgba.namedColor.green +
-      (double)rgba.namedColor.blue) / (3.0 * ChannelT1Traits::max());
-   ChannelT2 rescaled = static_cast<ChannelT2>(grayNorm * ChannelT2Traits::max());
+      (double)rgba.namedColor.blue) * stdesque::numeric::oneThirds() * ChannelT1Traits::invmax();
+   ChannelT2 rescaled = static_cast<ChannelT2>(std::round(grayNorm * ChannelT2Traits::max()));
    gray.namedColor.gray = rescaled;
 }
 
+template<typename ChannelT1,typename ChannelT1Traits,
+      typename ChannelT2,typename ChannelT2Traits>
+void rgba2gray(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
+               GrayAlphaPixel<ChannelT2,ChannelT2Traits>& gray,
+               typename std::enable_if<!std::is_integral<typename ChannelT2Traits::value_type>::value,int>::type* = 0) {
+
+   double grayNorm =
+         ((double)rgba.namedColor.red +
+          (double)rgba.namedColor.green +
+          (double)rgba.namedColor.blue) * stdesque::numeric::oneThirds() * ChannelT1Traits::invmax();
+   ChannelT2 rescaled = static_cast<ChannelT2>(grayNorm * ChannelT2Traits::max());
+   gray.namedColor.gray = rescaled;
+}
 
 template<template<typename,typename> class SrcPixelT,
          typename ChannelT1,typename ChannelT1Traits,
          template<typename,typename> class TgtPixelT,
          typename ChannelT2,typename ChannelT2Traits>
 void channel2mono(const SrcPixelT<ChannelT1,ChannelT1Traits>& pixel,
-                  TgtPixelT<ChannelT2,ChannelT2Traits>& mono,unsigned channel) {
+                  TgtPixelT<ChannelT2,ChannelT2Traits>& mono,unsigned channel,
+                  typename std::enable_if<std::is_integral<typename ChannelT2Traits::value_type>::value,int>::type* = 0) {
 
-   double chanval =(double)pixel.indexedColor[channel] / ChannelT1Traits::max() * ChannelT2Traits::max();
-   mono.indexedColor[0] = static_cast<ChannelT2>(chanval);
+   double chanval2 =(double)pixel.indexedColor[channel] * ChannelT1Traits::invmax() * ChannelT2Traits::max();
+   ChannelT2 val2 = static_cast<ChannelT2>(std::round(chanval2));
+   mono.indexedColor[0] = val2;
+}
+
+template<template<typename,typename> class SrcPixelT,
+      typename ChannelT1,typename ChannelT1Traits,
+      template<typename,typename> class TgtPixelT,
+      typename ChannelT2,typename ChannelT2Traits>
+void channel2mono(const SrcPixelT<ChannelT1,ChannelT1Traits>& pixel,
+                  TgtPixelT<ChannelT2,ChannelT2Traits>& mono,unsigned channel,
+                  typename std::enable_if<!std::is_integral<typename ChannelT2Traits::value_type>::value,int>::type* = 0) {
+
+   double chanval2 =(double)pixel.indexedColor[channel] * ChannelT1Traits::invmax() * ChannelT2Traits::max();
+   ChannelT2 val2 = static_cast<ChannelT2>(chanval2);
+   mono.indexedColor[0] = val2;
 }
 
 

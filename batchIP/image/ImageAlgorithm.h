@@ -634,6 +634,17 @@ void binarizeColor(const SrcImageT& src, TgtImageT& tgt, float thresholdDistance
 
 /*-----------------------------------------------------------------------**/
 template<typename SrcImageT,typename TgtImageT>
+void selectChannel(const SrcImageT& src, TgtImageT& tgt, unsigned channel) {
+
+   typename SrcImageT::const_iterator spos(src.begin());
+   typename SrcImageT::const_iterator send(src.end());
+   typename TgtImageT::iterator       tpos(tgt.begin());
+
+   for(;spos != send;++spos,++tpos) channel2mono(*spos,*tpos,channel);
+}
+
+/*-----------------------------------------------------------------------**/
+template<typename SrcImageT,typename TgtImageT>
 void selectColor(const SrcImageT& src, TgtImageT& tgt, unsigned channel,
                    // This ugly bit is an unnamed argument with a default which means it neither           
                    // contributes to the mangled declaration name nor requires an argument. So what is the 

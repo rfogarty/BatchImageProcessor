@@ -54,6 +54,15 @@ struct ChannelTraits {
    static
 #endif
    value_type max() { return std::numeric_limits<value_type>::max(); }
+#if __cplusplus >= 201103L
+   static constexpr
+   double invmax() { return 1.0/(double)max(); }
+#else
+   static double invmax() {
+      static const double invmax = 1.0/(double)max();
+      return invmax;
+   }
+#endif
 };
 
 template<>
@@ -73,6 +82,15 @@ struct ChannelTraits<float> {
    static
 #endif
    value_type max() { return 1.0f; }
+#if __cplusplus >= 201103L
+   static constexpr
+   double invmax() { return 1.0/(double)max(); }
+#else
+   static double invmax() {
+      static const double invmax = 1.0/(double)max();
+      return invmax;
+   }
+#endif
 };
 
 template<>
@@ -92,6 +110,15 @@ struct ChannelTraits<double> {
    static
 #endif
    value_type max() { return 1.0; }
+#if __cplusplus >= 201103L
+   static constexpr
+   double invmax() { return 1.0/(double)max(); }
+#else
+   static double invmax() {
+      static const double invmax = 1.0/(double)max();
+      return invmax;
+   }
+#endif
 };
 
 

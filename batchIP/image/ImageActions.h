@@ -29,7 +29,7 @@ public:
 
    virtual ~Scale() {}
 
-   virtual ActionType type() const { return INTENSITY; }
+   virtual ActionType type() const { return SCALE; }
 
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
@@ -170,6 +170,52 @@ ZERO_ARG_ACTION(HistogramEqualizeOCV,histogramEqualizeOCV,HISTOGRAM_EQ)
 ZERO_ARG_ACTION(OptimalBinarize,optimalBinarize,BINARIZE)
 ZERO_ARG_ACTION(OtsuBinarize,otsuBinarize,BINARIZE)
 ZERO_ARG_ACTION(OtsuBinarizeOCV,otsuBinarizeOCV,BINARIZE)
+ZERO_ARG_ACTION(DFTFilter,filter,BINARIZE)
+ZERO_ARG_ACTION(PowerSpectrum,powerSpectrum,POWER_SPECTUM)
+
+
+
+#define ZERO_ARG_GRAY_OUT_ACTION(NAME,CALL,TYPE)                                                                                                      \
+template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >                      \
+class NAME : public Action<ImageSrc,ImageTgt> {                                                                                                       \
+public:                                                                                                                                               \
+   typedef Action<ImageSrc,ImageTgt> SuperT;                                                                                                          \
+   typedef NAME<ImageSrc,ImageTgt> ThisT;                                                                                                             \
+   typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
+                                                                                                                                                      \
+private:                                                                                                                                              \
+                                                                                                                                                      \
+   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi) const {                                                             \
+      typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
+      algorithm::CALL(types::roi2view(src,roi),tgtview);                                                                                              \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   enum { NUM_PARAMETERS = 0 };                                                                                                                       \
+                                                                                                                                                      \
+public:                                                                                                                                               \
+   explicit NAME() {}                                                                                                                                 \
+                                                                                                                                                      \
+   virtual ~NAME() {}                                                                                                                                 \
+                                                                                                                                                      \
+   virtual ActionType type() const { return TYPE; }                                                                                                   \
+                                                                                                                                                      \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
+      run(src,tgt,view2roi(src.defaultView()));                                                                                                       \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
+      run(src,tgt,roi);                                                                                                                               \
+   }                                                                                                                                                  \
+                                                                                                                                                      \
+   static NAME* make(std::istream& ins) {                                                                                                             \
+      return new NAME<ImageSrc,ImageTgt>();                                                                                                           \
+   }                                                                                                                                                  \
+};                                                                                                                                                    \
+/* End of ZERO_ARG_GRAY_OUT_ACTION */
+
 
 
 #define ONE_ARG_ACTION(NAME,CALL,TYPE,VAL0T)                                                                                              \
@@ -219,6 +265,10 @@ ONE_ARG_ACTION(Binarize,binarize,BINARIZE,unsigned)
 ONE_ARG_ACTION(QRDecodeOCV,qrDecodeOCV,QR_DECODE,unsigned)
 #endif
 ONE_ARG_ACTION(UniformSmooth,uniformSmooth,UNIFORM_SMOOTH,unsigned)
+ONE_ARG_ACTION(LPFilterResponse,lpResponse,FILTER_RESP,double)
+ONE_ARG_ACTION(HPFilterResponse,hpResponse,FILTER_RESP,double)
+ONE_ARG_ACTION(LPFilter,lpFilter,FILTER,double)
+ONE_ARG_ACTION(HPFilter,hpFilter,FILTER,double)
 
 
 #define TWO_ARG_ACTION(NAME,CALL,TYPE,VAL0T,VAL1T)                                                                 \
@@ -271,6 +321,8 @@ TWO_ARG_ACTION(HistogramModifyRGB,histogramModifyRGB,HISTOGRAM_MOD,unsigned,unsi
 TWO_ARG_ACTION(HistogramModifyIntensity,histogramModifyIntensity,HISTOGRAM_MOD,unsigned,unsigned)
 TWO_ARG_ACTION(BinarizeDT,binarizeDouble,BINARIZE,unsigned,unsigned)
 TWO_ARG_ACTION(AfixAnyHSI,afixAnyHSI,AFIX_HSI,uint8_t,unsigned)
+TWO_ARG_ACTION(BPFilterResponse,bpResponse,FILTER_RESP,double,double)
+TWO_ARG_ACTION(BPFilter,bpFilter,FILTER,double,double)
 
 
 
@@ -335,12 +387,12 @@ public:                                                                         
    typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
                                                                                                                                                       \
 private:                                                                                                                                              \
-   VAL0T mVal0; /* TODO: should this use the enum? */                                                                                                 \
+   VAL0T mVal0;                                                                                                                                       \
    VAL1T mVal1;                                                                                                                                       \
                                                                                                                                                       \
    void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,VAL0T val0,VAL1T val1) const {                                       \
       typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
-      algorithm::CALL(types::roi2view(src,roi),tgtview,(algorithm::edge::Kernel)val0,val1);                                                           \
+      algorithm::CALL(types::roi2view(src,roi),tgtview,val0,val1);                                                                                    \
    }                                                                                                                                                  \
                                                                                                                                                       \
    enum { NUM_PARAMETERS = 2 };                                                                                                                       \
@@ -608,22 +660,22 @@ public:                                                                         
    typedef typename ImageSrc::pixel_type pixel_type;                                                                                                  \
                                                                                                                                                       \
 private:                                                                                                                                              \
-   /*unsigned mKernelType; */ /* TODO: should this use the enum? */                                                                                        \
+   /*unsigned mKernelType; */ /* TODO: should this use the enum? */                                                                                   \
    unsigned mWindowSize;                                                                                                                              \
    float mLowBound;                                                                                                                                   \
    float mHighBound;                                                                                                                                  \
                                                                                                                                                       \
-   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi/*,unsigned kernelType*/,unsigned windowSize,                             \
+   void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi/*,unsigned kernelType*/,unsigned windowSize,                         \
             float lowBound,float highBound) const {                                                                                                   \
       typename ImageTgt::image_view tgtview = types::roi2view(tgt,roi);                                                                               \
-      algorithm::ALGO(types::roi2view(src,roi),tgtview/*,(algorithm::edge::Kernel)kernelType*/,windowSize,lowBound,highBound);                            \
+      algorithm::ALGO(types::roi2view(src,roi),tgtview/*,(algorithm::edge::Kernel)kernelType*/,windowSize,lowBound,highBound);                        \
    }                                                                                                                                                  \
                                                                                                                                                       \
    enum { NUM_PARAMETERS = 3 };                                                                                                                       \
                                                                                                                                                       \
 public:                                                                                                                                               \
-   NAME(/*unsigned kernel,*/unsigned windowSize,float lowBound,float highBound) :                                                                         \
-      /*mKernelType(kernel),*/mWindowSize(windowSize),mLowBound(lowBound),mHighBound(highBound) {}                                                        \
+   NAME(/*unsigned kernel,*/unsigned windowSize,float lowBound,float highBound) :                                                                     \
+      /*mKernelType(kernel),*/mWindowSize(windowSize),mLowBound(lowBound),mHighBound(highBound) {}                                                    \
                                                                                                                                                       \
    virtual ~NAME() {}                                                                                                                                 \
                                                                                                                                                       \
@@ -632,24 +684,24 @@ public:                                                                         
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                  \
                                                                                                                                                       \
    virtual void run(const ImageSrc& src,ImageTgt& tgt) const {                                                                                        \
-      run(src,tgt,view2roi(src.defaultView())/*,mKernelType*/,mWindowSize,mLowBound,mHighBound);                                                          \
+      run(src,tgt,view2roi(src.defaultView())/*,mKernelType*/,mWindowSize,mLowBound,mHighBound);                                                      \
    }                                                                                                                                                  \
                                                                                                                                                       \
    virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {              \
       utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                            \
-      /*unsigned kernel = utility::parseWord<unsigned>(parameters[0]); */                                                                                 \
+      /*unsigned kernel = utility::parseWord<unsigned>(parameters[0]); */                                                                             \
       unsigned windowSize = utility::parseWord<unsigned>(parameters[0]);                                                                              \
       float lowBound = utility::parseWord<float>(parameters[1]);                                                                                      \
       float highBound = utility::parseWord<float>(parameters[2]);                                                                                     \
-      run(src,tgt,roi/*,kernel*/,windowSize,lowBound,highBound);                                                                                          \
+      run(src,tgt,roi/*,kernel*/,windowSize,lowBound,highBound);                                                                                      \
    }                                                                                                                                                  \
                                                                                                                                                       \
    static NAME* make(std::istream& ins) {                                                                                                             \
-      /*unsigned kernel = utility::parseWord<unsigned>(ins);*/                                                                                            \
+      /*unsigned kernel = utility::parseWord<unsigned>(ins);*/                                                                                        \
       unsigned windowSize = utility::parseWord<unsigned>(ins);                                                                                        \
       float lowBound = utility::parseWord<float>(ins);                                                                                                \
       float highBound = utility::parseWord<float>(ins);                                                                                               \
-      return new NAME<ImageSrc,ImageTgt>(/*kernel,*/windowSize,lowBound,highBound);                                                                       \
+      return new NAME<ImageSrc,ImageTgt>(/*kernel,*/windowSize,lowBound,highBound);                                                                   \
    }                                                                                                                                                  \
 };                                                                                                                                                    \
 /* End of EDGE_ACTION */
@@ -705,6 +757,61 @@ public:
    }
 };
 
+#define FOUR_ARG_ACTION(NAME,CALL,TYPE,VAL0T,VAL1T,VAL2T,VAL3T)                                                                                              \
+template<typename ImageT>                                                                                                                                    \
+class NAME : public Action<ImageT> {                                                                                                                         \
+public:                                                                                                                                                      \
+   typedef Action<ImageT> SuperT;                                                                                                                            \
+   typedef NAME<ImageT> ThisT;                                                                                                                               \
+   typedef typename ImageT::pixel_type pixel_type;                                                                                                           \
+                                                                                                                                                             \
+private:                                                                                                                                                     \
+   VAL0T mP0;                                                                                                                                                \
+   VAL1T mP1;                                                                                                                                                \
+   VAL2T mP2;                                                                                                                                                \
+   VAL3T mP3;                                                                                                                                                \
+                                                                                                                                                             \
+   void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,VAL0T p0,VAL1T p1,VAL2T p2,VAL3T p3) const {                                    \
+      typename ImageT::image_view tgtview = types::roi2view(tgt,roi);                                                                                        \
+      algorithm::CALL(types::roi2view(src,roi),tgtview,p0,p1,p2,p3);                                                                                         \
+   }                                                                                                                                                         \
+                                                                                                                                                             \
+   enum { NUM_PARAMETERS = 4 };                                                                                                                              \
+                                                                                                                                                             \
+public:                                                                                                                                                      \
+   NAME(VAL0T p0,VAL1T p1,VAL2T p2,VAL3T p3) : mP0(p0),mP1(p1),mP2(p2),mP3(p3) {}                                                                            \
+                                                                                                                                                             \
+   virtual ~NAME() {}                                                                                                                                        \
+                                                                                                                                                             \
+   virtual ActionType type() const { return TYPE; }                                                                                                          \
+                                                                                                                                                             \
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }                                                                                         \
+                                                                                                                                                             \
+   virtual void run(const ImageT& src,ImageT& tgt) const {                                                                                                   \
+      run(src,tgt,view2roi(src.defaultView()),mP0,mP1,mP2,mP3);                                                                                              \
+   }                                                                                                                                                         \
+                                                                                                                                                             \
+   virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {                         \
+      utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());                                                   \
+      VAL0T p0 = utility::parseWord<VAL0T>(parameters[0]);                                                                                                   \
+      VAL1T p1 = utility::parseWord<VAL1T>(parameters[1]);                                                                                                   \
+      VAL2T p2 = utility::parseWord<VAL2T>(parameters[2]);                                                                                                   \
+      VAL3T p3 = utility::parseWord<VAL3T>(parameters[3]);                                                                                                   \
+      run(src,tgt,roi,p0,p1,p2,p3);                                                                                                                          \
+   }                                                                                                                                                         \
+                                                                                                                                                             \
+   static NAME* make(std::istream& ins) {                                                                                                                    \
+      VAL0T p0 = utility::parseWord<VAL0T>(ins);                                                                                                             \
+      VAL1T p1 = utility::parseWord<VAL1T>(ins);                                                                                                             \
+      VAL2T p2 = utility::parseWord<VAL2T>(ins);                                                                                                             \
+      VAL3T p3 = utility::parseWord<VAL3T>(ins);                                                                                                             \
+      return new NAME<ImageT>(p0,p1,p2,p3);                                                                                                                  \
+   }                                                                                                                                                         \
+};                                                                                                                                                           \
+/* FOUR_ARG_GRAY_OUT_ACTION */
+
+FOUR_ARG_ACTION(Filter,filter,FILTER,double,double,double,double)
+FOUR_ARG_ACTION(FilterResponse,filterResponse,FILTER,double,double,double,double)
 
 } // namespace operation
 } // namespace batchIP

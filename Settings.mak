@@ -16,8 +16,8 @@ CPP_STD = -std=c++11
 #CPP_STD = -std=c++17
 
 # optimization
-#CPP_OPT_LEVEL = -g3 -ggdb -O0
-CPP_OPT_LEVEL = -O2 -march=native
+CPP_OPT_LEVEL = -g3 -ggdb -O0
+#CPP_OPT_LEVEL = -O2 -march=native
 #CPP_OPT_LEVEL = -O2 -march=native -DNDEBUG
 
 # warnings: always set to most Draconian...

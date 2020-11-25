@@ -11,10 +11,51 @@ DONE * Test with Valgrind to ensure no memory leaks or bad array indexing - see 
 * Create Parametric Pixel type (records position, x,y) - can be used for complex mask, e.g.
 
 
+HW#4
+
+
+For each filter, you should have three output images:
+1. the amplitude of the Fourier domain before filtering (no need to combine with the original image),
+2. the amplitude of the Fourier domain after filtering (no need to combine with the original image),
+3. the output result of the ROI combines with the original image.
+
+Filters:
+Low-pass filter (1 input)
+High-pass filter (1 input)
+Band-pass filter (2 inputs)
+Double band-pass filter (4 inputs)
+[2 extra credit] Apply the filters on the Fourier domain with color images:
+Convert color image to HSI space and apply Fourier transform and image filtering on I channel.
+Convert it back to RGB for display. (use the color conversion function from Project 2)
+
+
+
+DONE * Your program should be able to apply F.T. to an image. No need to implement D.F.T., use OpenCV library which
+       you have used previously. You will need to display absolute value of the amplitude of the Fourier domain as an
+       image (be careful with needed scaling).
+DONE * Your program should be able to apply inverse D.F.T. and display resulting image. This should work on grey level
+       images (color for extra credit).
+* Your program should:
+DONE ** operate within each of specified ROI, the rest of image should not be affected (three ROI required to be
+        implemented)
+DONE ** apply D.F.T. to each ROI and display absolute value of the amplitude of the Fourier domain before and
+   after filtering operation
+DONE ** apply inverse D.F.T. and display resulting (combined) image.
+DONE * Add low-pass and high-pass filtering to your choice of options. Assume circular filter and allow user to input one
+       cut-off frequency for low-pass/high-pass (filter does not affect the phase).
+* Test your program on some grey level images, including provided by TA.
+DONE * Add band-pass filter by allowing user input for 2 cut-off frequencies.
+DONE * Add “double” band-pass filter by allowing used input for two band-pass frequency ranges.
+DONE * NOTE: within each ROI any of 4 filter operations can be performed
+* EXTRA CREDIT (2 points) Color image filtering
+DONE ** Utilize image filtering on I component of HSI color space, show results on color (RGB) output
+
+
+
 HW#3
 
 Edge Detection [5 points]
-* Add edge detection for grey level images to your choice of options.
+DONE * Add edge detection for grey level images to your choice of options.
 DONE * Use Sobel operator (3x3) and (5x5) to compute dx and dy, compute gradient amplitude, compute edge direction
 * Your program should
 DONE ** operate within specified ROIs (up to three ROIs as in previous assignments)
@@ -27,7 +68,7 @@ DONE ** generate binary edge image by further thresholding the above output usin
 DONE ** utilize Canny module of OpenCV and compare to Sobel results
 DONE ** implement histogram equalization using OpenCV and compare to your histogram stretching implementation
 DONE ** implement Otsu algorithm using OpenCV and compare to your implementation of fixed thresholding.
- ** Combine operations by applying histogram equalization only to foreground as determined by Otsu.
+DONE ** Combine operations by applying histogram equalization only to foreground as determined by Otsu.
 * Advanced Operations [2 points – extra credit]
 DONE ** Implement QR code detection and decoding (see TA instructions)
 DONE ** Get some QR images using your cell camera under varying light conditions and test your implementation.

@@ -101,7 +101,7 @@ public:
       // which is the normal convention in C/C++
       mAllocatedCols(computeCacheFriendlyRowSize(cols + 2*padding)),
       mPadding(padding),
-      pixels(mAllocatedRows*mAllocatedCols)
+      pixels(mAllocatedRows*mAllocatedCols,pixel_type())
    {} // rounding up cols here to make row processing
       // always cache friendly (which usually is 64 byte aligned)
 

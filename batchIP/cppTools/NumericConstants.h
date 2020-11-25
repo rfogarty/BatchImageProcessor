@@ -15,9 +15,9 @@ CONST_VAL_FUNC double twoThirdsPi()  { return 2.0943951023931953; }
 
 CONST_VAL_FUNC double fourThirdsPi() { return 4.1887902047863905; }
 
-CONST_VAL_FUNC double oneThirds() { return 0.3333333; }
+CONST_VAL_FUNC double oneThirds() { return 0.33333333333333; }
 
-CONST_VAL_FUNC double twoThirds() { return 0.6666667; }
+CONST_VAL_FUNC double twoThirds() { return 0.66666666666667; }
 
 } // namespace numeric
 } // stdesque
