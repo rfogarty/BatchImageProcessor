@@ -9,24 +9,25 @@ DONE * Should have conversion functions between image and pixel types.
 DONE * Test with AddressSanitizer to ensure absolutely no bad memory accesses
 DONE * Test with Valgrind to ensure no memory leaks or bad array indexing - see results below.
 * Create Parametric Pixel type (records position, x,y) - can be used for complex mask, e.g.
+* Would be cool to add Grayscale to color image based on 24bit gray to pseudo-color translation
+  especially for analyzing DFT powerSpectrum since the synamic range is so high
 
 
 HW#4
 
-
 For each filter, you should have three output images:
-1. the amplitude of the Fourier domain before filtering (no need to combine with the original image),
-2. the amplitude of the Fourier domain after filtering (no need to combine with the original image),
-3. the output result of the ROI combines with the original image.
+DONE 1. the amplitude of the Fourier domain before filtering (no need to combine with the original image),
+DONE 2. the amplitude of the Fourier domain after filtering (no need to combine with the original image),
+DONE 3. the output result of the ROI combines with the original image.
 
 Filters:
-Low-pass filter (1 input)
-High-pass filter (1 input)
-Band-pass filter (2 inputs)
-Double band-pass filter (4 inputs)
-[2 extra credit] Apply the filters on the Fourier domain with color images:
-Convert color image to HSI space and apply Fourier transform and image filtering on I channel.
-Convert it back to RGB for display. (use the color conversion function from Project 2)
+DONE Low-pass filter (1 input)
+DONE High-pass filter (1 input)
+DONE Band-pass filter (2 inputs)
+DONE Double band-pass filter (4 inputs)
+DONE [2 extra credit] Apply the filters on the Fourier domain with color images:
+DONE Convert color image to HSI space and apply Fourier transform and image filtering on I channel.
+DONE Convert it back to RGB for display. (use the color conversion function from Project 2)
 
 
 

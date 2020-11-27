@@ -431,7 +431,7 @@ void applyFilter(cv::Mat& ocvDst,unsigned rows,unsigned cols,double lowCutoff,do
    // Set up filter
    // First compute the diagonal
    unsigned ry = ((unsigned) ocvDst.rows >> 1);
-   unsigned rx = ((unsigned) ocvDst.rows >> 1);
+   unsigned rx = ((unsigned) ocvDst.cols >> 1);
    double diag = std::sqrt(double(ry)*double(ry) + double(rx)*double(rx));
 
    // Maintain the following as the square to avoid sqrt function in loop below.
@@ -568,6 +568,8 @@ void remapFilterParams(double filter1Low,double& filter1High,double filter2Low,d
    // Double Bandstop H1 L1 H2 L2 -> Bandstop(H1,L1),Bandstop(H2,L2) ... no change
 
    if(filter1Low < filter1High && filter1High < filter2Low) std::swap(filter1High,filter2High);
+   else if(filter2Low < filter2High && filter2High < filter1Low) std::swap(filter1High,filter2High);
+   // else do nothing
 }
 
 

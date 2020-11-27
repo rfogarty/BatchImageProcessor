@@ -65,7 +65,7 @@ void rgba2hsi(const RGBAPixel<ChannelT1,ChannelT1Traits>& rgba,
    // values less than 1.0%, force saturation to zero.
    // In general I don't like this definition of saturation - I think it should
    // instead be related to the difference of the max and min value.
-   double s = sumRGB > 0.01 ? 1.0 - 3.0*std::min(r,std::min(g,b)) : 0.0;
+   double s = sumRGB > 0.0 ? 1.0 - 3.0*std::min(r,std::min(g,b)) : 0.0;
    // Let's force saturation to 0.0 if we are block.
    double i = sumRGB/(3*ChannelT1Traits::max());
 
