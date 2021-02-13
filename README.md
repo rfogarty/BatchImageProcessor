@@ -6,7 +6,7 @@ A small tool (executable *batchIP*) to study Image Processing algorithms.
 BatchImageProcessor is mostly written as template library to support rapid
 prototyping for different image and pixel formats, processing algorithms, etc.
 
-VERSION=v0.4
+VERSION=v0.6
 
 ### Directory Structure
 This software currently has the following directory structure:
@@ -33,7 +33,7 @@ This software currently has the following directory structure:
 
 ## BUILDING
 
-Requires: Gnu Make, C++ compiler (such as g++ or clang++), and OpenCV4!
+Requires: Gnu Make, C++ compiler (such as g++ or clang++), and OpenCV4
 
 Because of the dependency upon OpenCV4, the build procedure has changed slightly
 since v0.3. The Makefiles will attempt to use the tool pkg-config to load compiler and
@@ -126,8 +126,10 @@ identify multiple ROI sections and parameters.
 | Histogram EQ           | histEQCV      |        0 |                             | histogram equalizes (OpenCV) an image.
 | Thresh. Histogram EQ   | thresholdEQCV |        1 | <region (0-fg,1-bg,2-both)> | Otsu threshold, then histogramEQ foreground or background.
 | OtsuBinarization (OCV) | otsuBinarizeCV|        0 |                             | binarize the image with Otsu threshold (OpenCV).
-| EdgeGradientAmplitude  | edgeGradient  |        1 | <windowSize (unsigned 3,5)> | Sobel edge gradient magnitude.
-| EdgeGradientDetect     | edgeDetect    |        1 | <windowSize (unsigned 3,5>  | thresholded (Otsu) Sobel edge detection. 
+| EdgeGradientAmplitude  | edgeGradient  |        1 | <windowSize (unsigned 3,5,7,9,11)> | Sobel edge gradient magnitude.
+| EdgeGradientAmplitude  | edgeGradientClipped  | 2 | <windowSize (unsigned 3,5,7,9,11)> | Sobel edge gradient magnitude, clipped at some top percent
+|                        |               |          | <clipPoint  (float 0-1.0)>  |    top ratio to clip off the top (before normalizing output)
+| EdgeGradientDetect     | edgeDetect    |        1 | <windowSize (unsigned 3,5,7,9,11)> | thresholded (Otsu) Sobel edge detection. 
 | OrientedEdgeGradient   | orientedEdgeGradient | 3 | <windowSize (unsigned 3,5)> | oriented Sobel edge gradient
 |                        |               |          | <angle0 (float -180:180)>   |    if angle0 < angle1: angle0< edge < angle1
 |                        |               |          | <angle1 (float -180:180)>   |    if angle0 > angle1: edge < angle1 or angle0 < edge (disjoint compare)

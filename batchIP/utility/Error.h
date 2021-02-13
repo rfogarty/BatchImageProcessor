@@ -47,6 +47,24 @@ void reportIfNotEqual(const char* field,T val1,T val2) {
 #endif
 }
 
+template<typename T>
+void reportIfEqual(const char* field,T val1,T val2) {
+#ifdef FAIL_WITH_ASSERT
+
+   assert(val1 != val2);
+
+#else
+
+#  ifndef NDEBUG // Uses the NDEBUG flag to disable, that's also used to disable assert statements
+   if(val1 == val2) {
+      std::stringstream ss;
+      ss << field << " " << val1 << " == " << val2;
+      throw std::out_of_range(ss.str());
+   }
+#  endif
+
+#endif
+}
 
 inline void fail(const char* reason) {
 #ifdef FAIL_WITH_ASSERT

@@ -18,6 +18,10 @@ bool startsWith(const std::string& str, const std::string& prefix);
 // a robust function (so hardly deserving to be its own function)
 bool readNext2Integers(std::istream& ins,unsigned& val1,unsigned& val2);
 
+// used to grab metadata numColors out of PNM format - not really
+// a robust function (so hardly deserving to be its own function)
+bool readNextInteger(std::istream& ins,unsigned& val1);
+
 
 
 ///////////////////////////////////////////////////////////////////////////////

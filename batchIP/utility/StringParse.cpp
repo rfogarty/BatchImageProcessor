@@ -46,6 +46,22 @@ bool readNext2Integers(std::istream& ins,unsigned& val1,unsigned& val2) {
    return readVal2;
 }
 
+// This operation is specifically targeted at reading metadata from the
+//    PNM format, and is a little ugly, but tries to be resilient to comments.
+//    This would be much easier in a proper tokenizing/parsing tool such as
+//    flex/bison or ANTLR
+bool readNextInteger(std::istream& ins,unsigned& val1) {
+   // Note: a successful read of val2 implies a successful read of val1
+   do {
+      std::string line;
+      std::getline(ins,line);
+      std::stringstream ss(line);
+      if(!(ss >> val1).fail()) return true;
+   } while(ins);
+
+   return false;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // ParseError Implementation
 //////////////////////////////////////////////////////////////////////////

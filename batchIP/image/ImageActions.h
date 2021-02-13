@@ -425,6 +425,7 @@ public:                                                                         
 };                                                                                                                                                    \
 /* End of EDGE_ACTION */
 
+TWO_ARG_GRAY_OUT_ACTION(EdgeGradientClipped,edgeGradientClipped,EDGE,unsigned,double)
 //TWO_ARG_GRAY_OUT_ACTION(EdgeGradient,edgeGradient,EDGE,unsigned,unsigned)
 //TWO_ARG_GRAY_OUT_ACTION(EdgeDetect,edgeDetect,EDGE,unsigned,unsigned)
 

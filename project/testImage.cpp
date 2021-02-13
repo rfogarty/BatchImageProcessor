@@ -7,6 +7,7 @@
 #include "image/Image.h"
 #include "image/NetpbmImage.h"
 #include "image/Pixel.h"
+#include "image/ImageAlgorithm.h"
 #include "utility/Error.h"
 #include <exception>
 #include <iostream>
@@ -16,6 +17,7 @@ using namespace batchIP;
 using namespace batchIP::io;
 using namespace batchIP::types;
 using namespace batchIP::utility;
+using namespace batchIP::algorithm;
 
 class ExpectedError : public std::exception {
 private:
@@ -95,7 +97,7 @@ void makeImproperGrayscaleView() {
    try {
       ViewT view = image.view(1001u,1201u);
       // If correct, we should NOT get to the next two lines.
-      std::cout << "Improper size shouldn't print" << view.size() << std::endl;
+      std::cout << "Improper size shouldn't print " << view.size() << std::endl;
       throw ExpectedError("Expected view creation to be out of range");
    } catch(const std::out_of_range& oor) {}
 }
@@ -317,7 +319,159 @@ void testRGBA2HSI(uint8_t r,uint8_t g, uint8_t b) {
    reportIfNotEqual("rgb1 != rgb2",rgb1,rgb2);
 }
 
+void testSobel() {
+   typedef float PrecisionT;
+   typedef types::Image<types::MonochromePixel<PrecisionT> > KernelT;
 
+   {
+      KernelT kernelX;
+      KernelT kernelX_new;
+      KernelT kernelY;
+      KernelT kernelY_new;
+      unsigned int windowSize = 5;
+      edge::sobel5(kernelX, kernelY);
+      edge::sobelX(windowSize,kernelX_new, kernelY_new);
+
+      std::cout << "Sobel" << windowSize << "-X: \n";
+      for(unsigned int i = 0; i < windowSize;++i) {
+         std::string space = "";
+         for(unsigned int j = 0; j < windowSize;++j) {
+            std::cout  << space << kernelX.pixel(i, j).tuple.value0;
+            space = " ";
+         }
+         std::cout << "\n";
+      }
+      std::cout << "\n";
+
+      std::cout << "Sobel" << windowSize << "-X-New: \n";
+      for(unsigned int i = 0; i < windowSize;++i) {
+         std::string space = "";
+         for(unsigned int j = 0; j < windowSize;++j) {
+            std::cout  << space << kernelX_new.pixel(i, j).tuple.value0;
+            space = " ";
+         }
+         std::cout << "\n";
+      }
+      std::cout << "\n";
+
+      std::cout << "Sobel" << windowSize << "-Y: \n";
+      for(unsigned int i = 0; i < windowSize;++i) {
+         std::string space = "";
+         for(unsigned int j = 0; j < windowSize;++j) {
+            std::cout  << space << kernelY.pixel(i, j).tuple.value0;
+            space = " ";
+         }
+         std::cout << "\n";
+      }
+      std::cout << std::endl;
+
+      std::cout << "Sobel" << windowSize << "-Y-New: \n";
+      for(unsigned int i = 0; i < windowSize;++i) {
+         std::string space = "";
+         for(unsigned int j = 0; j < windowSize;++j) {
+            std::cout  << space << kernelY_new.pixel(i, j).tuple.value0;
+            space = " ";
+         }
+         std::cout << "\n";
+      }
+      std::cout << std::endl;
+
+   }
+
+   //          -2/8 -1/5  0  1/5  2/8           -5  -4  0   4   5
+   //          -2/5 -1/2  0  1/2  2/5           -8 -10  0  10   8
+   //G_x (5x5) -2/4 -1/1  0  1/1  2/4  (*20) = -10 -20  0  20  10
+   //          -2/5 -1/2  0  1/2  2/5           -8 -10  0  10   8
+   //          -2/8 -1/5  0  1/5  2/8           -5  -4  0   4   5
+
+
+   //-3/18 -2/13 -1/10 0  1/10 2/13 3/18
+   //-3/13 -2/8  -1/5  0  1/5  2/8  3/13
+   //-3/10 -2/5  -1/2  0  1/2  2/5  3/10
+   //-3/9  -2/4  -1/1  0  1/1  2/4  3/9
+   //-3/10 -2/5  -1/2  0  1/2  2/5  3/10
+   //-3/13 -2/8  -1/5  0  1/5  2/8  3/13
+   //-3/18 -2/13 -1/10 0  1/10 2/13 3/18
+
+   //-3/18 -2/13 -1/10   0/9  1/10  2/13  3/18             -130 -120  -78    0   78  120  130
+   //-3/13  -2/8  -1/5   0/4   1/5   2/8  3/13             -180 -195 -156    0  156  195  180
+   //-3/10  -2/5  -1/2   0/1   1/2   2/5  3/10             -234 -312 -390    0  390  312  234
+   //-3/9  -2/4  -1/1     0   1/1   2/4   3/9   * 780 =   -260 -390 -780    0  780  390  260
+   //-3/10  -2/5  -1/2   0/1   1/2   2/5  3/10             -234 -312 -390    0  390  312  234
+   //-3/13  -2/8  -1/5   0/4   1/5   2/8  3/13             -180 -195 -156    0  156  195  180
+   //-3/18 -2/13 -1/10   0/9  1/10  2/13  3/18             -130 -120  -78    0   78  120  130
+
+   //-4/32 -3/25 -2/20 -1/17  0/16  1/17  2/20  3/25  4/32                -16575  -15912  -13260   -7800       0    7800   13260   15912   16575
+   //-4/25 -3/18 -2/13 -1/10   0/9  1/10  2/13  3/18  4/25                -21216  -22100  -20400  -13260       0   13260   20400   22100   21216
+   //-4/20 -3/13  -2/8  -1/5   0/4   1/5   2/8  3/13  4/20                -26520  -30600  -33150  -26520       0   26520   33150   30600   26520
+   //-4/17 -3/10  -2/5  -1/2   0/1   1/2   2/5  3/10  4/17                -31200  -39780  -53040  -66300       0   66300   53040   39780   31200
+   //-4/16  -3/9  -2/4  -1/1     0   1/1   2/4   3/9  4/16   * 132600 =   -33150  -44200  -66300 -132600       0  132600   66300   44200   33150
+   //-4/17 -3/10  -2/5  -1/2   0/1   1/2   2/5  3/10  4/17                -31200  -39780  -53040  -66300       0   66300   53040   39780   31200
+   //-4/20 -3/13  -2/8  -1/5   0/4   1/5   2/8  3/13  4/20                -26520  -30600  -33150  -26520       0   26520   33150   30600   26520
+   //-4/25 -3/18 -2/13 -1/10   0/9  1/10  2/13  3/18  4/25                -21216  -22100  -20400  -13260       0   13260   20400   22100   21216
+   //-4/32 -3/25 -2/20 -1/17  0/16  1/17  2/20  3/25  4/32                -16575  -15912  -13260   -7800       0    7800   13260   15912   16575
+
+
+
+   {
+      KernelT kernelX_new;
+      KernelT kernelY_new;
+      unsigned int windowSize = 7;
+      edge::sobelX(windowSize,kernelX_new, kernelY_new);
+
+      std::cout << "Sobel" << windowSize << "-X-New: \n";
+      for(unsigned int i = 0; i < windowSize;++i) {
+         std::string space = "";
+         for(unsigned int j = 0; j < windowSize;++j) {
+            std::cout  << space << kernelX_new.pixel(i, j).tuple.value0;
+            space = " ";
+         }
+         std::cout << "\n";
+      }
+      std::cout << "\n";
+
+      std::cout << "Sobel" << windowSize << "-Y-New: \n";
+      for(unsigned int i = 0; i < windowSize;++i) {
+         std::string space = "";
+         for(unsigned int j = 0; j < windowSize;++j) {
+            std::cout  << space << kernelY_new.pixel(i, j).tuple.value0;
+            space = " ";
+         }
+         std::cout << "\n";
+      }
+      std::cout << std::endl;
+   }
+
+   {
+      KernelT kernelX_new;
+      KernelT kernelY_new;
+      unsigned int windowSize = 9;
+      edge::sobelX(windowSize,kernelX_new, kernelY_new);
+
+      std::cout << "Sobel" << windowSize << "-X-New: \n";
+      for(unsigned int i = 0; i < windowSize;++i) {
+         std::string space = "";
+         for(unsigned int j = 0; j < windowSize;++j) {
+            std::cout  << space << kernelX_new.pixel(i, j).tuple.value0;
+            space = " ";
+         }
+         std::cout << "\n";
+      }
+      std::cout << "\n";
+
+      std::cout << "Sobel" << windowSize << "-Y-New: \n";
+      for(unsigned int i = 0; i < windowSize;++i) {
+         std::string space = "";
+         for(unsigned int j = 0; j < windowSize;++j) {
+            std::cout  << space << kernelY_new.pixel(i, j).tuple.value0;
+            space = " ";
+         }
+         std::cout << "\n";
+      }
+      std::cout << std::endl;
+   }
+
+}
 
 int main() {
 
@@ -357,7 +511,8 @@ int main() {
       testRGBA2HSI(255,255,255);
 
       testRGBA2HSI(128,100,50);
-      
+
+      testSobel();
    }
    catch(const std::exception& e) {
       std::cerr << "ERROR: " << e.what() << std::endl;

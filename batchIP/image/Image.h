@@ -838,8 +838,8 @@ public:
 
    template<typename PixelTT>
    Image& operator=(const Image<PixelTT>& that) {
-      void* utThis = this;
-      void* utThat = &that;
+      const void* utThis = this;
+      const void* utThat = &that;
       if(utThis != utThat) {
          resize(that.rows(),that.cols(),that.padding());
          iterator tpos = begin();
@@ -854,8 +854,8 @@ public:
 
    template<typename PixelTT>
    Image& operator=(const ImageView<PixelTT>& that) {
-      void* utThisStore = &this->mStore;
-      void* utThatStore = that.mStore;
+      const void* utThisStore = &this->mStore;
+      const void* utThatStore = that.mStore;
       if(utThisStore != utThatStore) {
          resize(that.rows(),that.cols());
          iterator tpos = begin();

@@ -64,6 +64,12 @@ struct RGBAPixel {
       namedColor()
    {}
 
+   RGBAPixel(const RGBAPixel& that) = default;
+
+   // implicit conversion from RGBAPixel
+   template<typename ChannelTT,typename ChannelTTTraits>
+   RGBAPixel(const RGBAPixel<ChannelTT,ChannelTTTraits>& that);
+
    bool operator==(const RGBAPixel& that) {
       // TODO: this type of comparison isn't appropriate
       // for floating point types...
@@ -78,6 +84,20 @@ struct RGBAPixel {
       return !(*this == that);
    }
 };
+
+template<typename ChannelT,typename ChannelTraitsT>
+template<typename ChannelTT,typename ChannelTTTraits>
+RGBAPixel<ChannelT,ChannelTraitsT>::RGBAPixel(const RGBAPixel<ChannelTT,ChannelTTTraits>& that) :
+      namedColor() {
+   double red =(double)that.namedColor.red * ChannelTTTraits::invmax() * ChannelTraitsT::max();
+   this->namedColor.red = static_cast<ChannelT>(red);
+   double green =(double)that.namedColor.green * ChannelTTTraits::invmax() * ChannelTraitsT::max();
+   this->namedColor.green = static_cast<ChannelT>(green);
+   double blue =(double)that.namedColor.blue * ChannelTTTraits::invmax() * ChannelTraitsT::max();
+   this->namedColor.blue = static_cast<ChannelT>(blue);
+   double alpha =(double)that.namedColor.alpha * ChannelTTTraits::invmax() * ChannelTraitsT::max();
+   this->namedColor.alpha = static_cast<ChannelT>(alpha);
+}
 
 template <class T> struct is_rgba                            : public std::false_type{};
 template <class T> struct is_rgba<const T >                  : public is_rgba<T>{};
@@ -267,6 +287,8 @@ struct GrayAlphaPixel {
       namedColor()
    {}
 
+   GrayAlphaPixel(const GrayAlphaPixel& that) = default;
+
    GrayAlphaPixel(ChannelT gray,ChannelT alpha = 0) {
       namedColor.gray = gray;
       namedColor.alpha = alpha;
@@ -280,6 +302,9 @@ struct GrayAlphaPixel {
    template<typename ChannelTT,typename ChannelTTTraits>
    operator RGBAPixel<ChannelTT,ChannelTTTraits>() const;
 
+   // implicit conversion from GrayAlphaPixel
+   template<typename ChannelTT,typename ChannelTTTraits>
+   GrayAlphaPixel(const GrayAlphaPixel<ChannelTT,ChannelTTTraits>& that);
 
    bool operator==(const GrayAlphaPixel& that) {
       return namedColor.gray == that.namedColor.gray &&
@@ -308,6 +333,12 @@ GrayAlphaPixel<ChannelT,ChannelTraitsT>::operator RGBAPixel<ChannelTT,ChannelTTT
 }
 
 
+template<typename ChannelT,typename ChannelTraitsT>
+template<typename ChannelTT,typename ChannelTTTraits>
+GrayAlphaPixel<ChannelT,ChannelTraitsT>::GrayAlphaPixel(const GrayAlphaPixel<ChannelTT,ChannelTTTraits>& that) :
+      namedColor() {
+   channel2mono(that,*this,0);
+}
 
 // Template types for SFINAE deduction - used to identify proper function overloads
 template <class T> struct is_grayscale                       : public std::false_type{};
