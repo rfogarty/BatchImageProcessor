@@ -126,7 +126,7 @@ void drawHistogram(TgtImageT& tgt,const HistogramT& histogram) {
 
 
 template<typename SrcImageT,typename TgtImageT>
-void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,
+void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,bool printHistogram,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -141,6 +141,12 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,
    double maxColumnHeight = 0;
    HistogramT histogram(computeHistogram(src,TgtImageT::pixel_type::traits::max()+1u,SrcImageT::pixel_type::GRAY_CHANNEL,maxColumnHeight));
 
+   if(printHistogram) {
+      std::cout << "HISTOGRAM: ";
+      std::for_each(histogram.begin(),histogram.end(),[](double v) { std::cout << " " << v; } );
+      std::cout << std::endl;
+   }
+
    if(logBase < 2) normalizeHistogram(histogram,tgt.rows(),maxColumnHeight);
    else logNormalizeHistogram(histogram,tgt.rows(),maxColumnHeight,logBase);
 
@@ -148,7 +154,7 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,
 }
 
 template<typename SrcImageT,typename TgtImageT>
-void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,unsigned channel,
+void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,unsigned channel,bool printHistogram,
          // This ugly bit is an unnamed argument with a default which means it neither           
          // contributes to the mangled declaration name nor requires an argument. So what is the 
          // point? It still participates in SFINAE to help select that this is an appropriate    
@@ -162,6 +168,12 @@ void histogram(const SrcImageT& src, TgtImageT& tgt,unsigned logBase,unsigned ch
    // First compute Histogram
    double maxColumnHeight = 0;
    HistogramT histogram(computeHistogram(src,TgtImageT::pixel_type::traits::max()+1u,channel,maxColumnHeight));
+
+   if(printHistogram) {
+      std::cout << "HISTOGRAM: ";
+      std::for_each(histogram.begin(),histogram.end(),[](double v) { std::cout << " " << v; } );
+      std::cout << std::endl;
+   }
 
    if(logBase < 2) normalizeHistogram(histogram,tgt.rows(),maxColumnHeight);
    else logNormalizeHistogram(histogram,tgt.rows(),maxColumnHeight,logBase);

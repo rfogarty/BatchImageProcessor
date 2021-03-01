@@ -93,16 +93,17 @@ public:
 private:
 
    unsigned mLogBase;
+   bool mPrintHistogram;
    mutable bool mRunOnce;
 
-   void runHist(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned logBase) const {
-      algorithm::histogram(types::roi2view(src,roi),tgt,logBase);
+   void runHist(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,unsigned logBase,bool printHistogram) const {
+      algorithm::histogram(types::roi2view(src,roi),tgt,logBase,printHistogram);
    }
 
-   enum { NUM_PARAMETERS = 1 };
+   enum { NUM_PARAMETERS = 2 };
 
 public:
-   explicit Histogram(unsigned logBase) : mLogBase(logBase), mRunOnce(false) {}
+   explicit Histogram(unsigned logBase,bool printHistogram) : mLogBase(logBase), mPrintHistogram(printHistogram),mRunOnce(false) {}
 
    virtual ~Histogram() {}
 
@@ -111,7 +112,7 @@ public:
    virtual unsigned numParameters() const { return NUM_PARAMETERS; }
 
    virtual void run(const ImageT& src,ImageT& tgt) const {
-      runHist(src,tgt,view2roi(src.defaultView()),mLogBase);
+      runHist(src,tgt,view2roi(src.defaultView()),mLogBase,mPrintHistogram);
    }
 
    virtual void run(const ImageT& src,ImageT& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
@@ -119,7 +120,8 @@ public:
          mRunOnce = true;
          utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
          unsigned logBase = utility::parseWord<unsigned>(parameters[0]);
-         runHist(src,tgt,roi,logBase);
+         bool printHistogram = utility::parseWord<bool>(parameters[1]);
+         runHist(src,tgt,roi,logBase,printHistogram);
       }
       else {
          utility::fail("Histogram (hist) supports only one ROI (call multiple times or use crop first)!");
@@ -128,9 +130,69 @@ public:
 
    static Histogram* make(std::istream& ins) {
       unsigned logBase = utility::parseWord<unsigned>(ins);
-      return new Histogram<ImageT>(logBase);
+      bool printHistogram = utility::parseWord<bool>(ins);
+      return new Histogram<ImageT>(logBase,printHistogram);
    }
 };
+
+
+
+
+template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
+class HistogramChannel : public Action<ImageSrc,ImageTgt> {
+public:
+   typedef HistogramChannel<ImageSrc,ImageTgt> ThisT;
+
+private:
+
+   unsigned mLogBase;
+   unsigned mChannel;
+   bool mPrintHistogram;
+   mutable bool mRunOnce;
+
+   void runHist(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned logBase,unsigned channel,bool printHistogram) const {
+      algorithm::histogram(types::roi2view(src,roi),tgt,logBase,channel,printHistogram);
+   }
+
+   enum { NUM_PARAMETERS = 3 };
+
+public:
+   HistogramChannel(unsigned logBase,unsigned channel,bool printHistogram) : mLogBase(logBase),mChannel(channel), mPrintHistogram(printHistogram), mRunOnce(false) {}
+
+   virtual ~HistogramChannel() {}
+
+   virtual ActionType type() const { return HISTOGRAM; }
+
+   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
+
+   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {
+      runHist(src,tgt,view2roi(src.defaultView()),mLogBase,mChannel,mPrintHistogram);
+   }
+
+   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
+      if(!mRunOnce) {
+         mRunOnce = true;
+         utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
+         unsigned logBase = utility::parseWord<unsigned>(parameters[0]);
+         unsigned channel = utility::parseWord<unsigned>(parameters[1]);
+         bool printHistogram = utility::parseWord<bool>(parameters[2]);
+         runHist(src,tgt,roi,logBase,channel,printHistogram);
+      }
+      else {
+         utility::fail("Histogram (histChan) supports only one ROI (call multiple times or use crop first)!");
+      }
+   }
+
+   static HistogramChannel* make(std::istream& ins) {
+      unsigned logBase = utility::parseWord<unsigned>(ins);
+      unsigned channel = utility::parseWord<unsigned>(ins);
+      bool printHistogram = utility::parseWord<bool>(ins);
+      return new HistogramChannel<ImageSrc,ImageTgt>(logBase,channel,printHistogram);
+   }
+};
+
+
+
 
 #define ZERO_ARG_ACTION(NAME,CALL,TYPE)                                                                                                   \
 template<typename ImageT>                                                                                                                 \
@@ -546,59 +608,6 @@ public:
       return new HistogramModifyAnyHSI<ImageT>(lowI,highI,lowS,highS,lowH,highH);                                     
    }
 };
-
-
-
-template<typename ImageSrc,typename ImageTgt = types::Image<types::GrayAlphaPixel<typename ImageSrc::pixel_type::value_type> > >
-class HistogramChannel : public Action<ImageSrc,ImageTgt> {
-public:
-   typedef HistogramChannel<ImageSrc,ImageTgt> ThisT;
-
-private:
-
-   unsigned mLogBase;
-   unsigned mChannel;
-   mutable bool mRunOnce;
-
-   void runHist(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,unsigned logBase,unsigned channel) const {
-      algorithm::histogram(types::roi2view(src,roi),tgt,logBase,channel);
-   }
-
-   enum { NUM_PARAMETERS = 2 };
-
-public:
-   HistogramChannel(unsigned logBase,unsigned channel) : mLogBase(logBase),mChannel(channel), mRunOnce(false) {}
-
-   virtual ~HistogramChannel() {}
-
-   virtual ActionType type() const { return HISTOGRAM; }
-
-   virtual unsigned numParameters() const { return NUM_PARAMETERS; }
-
-   virtual void run(const ImageSrc& src,ImageTgt& tgt) const {
-      runHist(src,tgt,view2roi(src.defaultView()),mLogBase,mChannel);
-   }
-
-   virtual void run(const ImageSrc& src,ImageTgt& tgt,const types::RegionOfInterest& roi,const types::ParameterPack& parameters) const {
-      if(!mRunOnce) {
-         mRunOnce = true;
-         utility::reportIfNotEqual("parameters.size()",(unsigned)NUM_PARAMETERS,(unsigned)parameters.size());
-         unsigned logBase = utility::parseWord<unsigned>(parameters[0]);
-         unsigned channel = utility::parseWord<unsigned>(parameters[1]);
-         runHist(src,tgt,roi,logBase,channel);
-      }
-      else {
-         utility::fail("Histogram (histChan) supports only one ROI (call multiple times or use crop first)!");
-      }
-   }
-
-   static HistogramChannel* make(std::istream& ins) {
-      unsigned logBase = utility::parseWord<unsigned>(ins);
-      unsigned channel = utility::parseWord<unsigned>(ins);
-      return new HistogramChannel<ImageSrc,ImageTgt>(logBase,channel);
-   }
-};
-
 
 template<typename ImageT>
 class BinarizeColor : public Action<ImageT> {

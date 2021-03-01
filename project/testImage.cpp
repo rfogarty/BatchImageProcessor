@@ -329,7 +329,9 @@ void testSobel() {
       KernelT kernelY;
       KernelT kernelY_new;
       unsigned int windowSize = 5;
-      edge::sobel5(kernelX, kernelY);
+      // TODO: drop old implementation of Sobel5 function in here...
+      // currently this test doesn't make sense!
+      edge::sobelX(5,kernelX, kernelY);
       edge::sobelX(windowSize,kernelX_new, kernelY_new);
 
       std::cout << "Sobel" << windowSize << "-X: \n";

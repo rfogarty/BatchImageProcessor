@@ -118,7 +118,8 @@ identify multiple ROI sections and parameters.
 | OtsuBinarization       | otsuBinarize  |        0 |                             | binarize the image using Otsu threshold.
 | BinarizationRange      | binarizeDT    |        2 | <threshLow  (unsigned)>     | binarize the pixels with 2 thresholds.
 |                        |               |          | <threshHigh (unsigned)>     | 
-| Histogram[^1]          | hist          |        1 | <type       (unsigned 0,2)> | compute histogram of grayscale intensity; type is 0-linear, 2-log
+| Histogram[^1]          | hist          |        2 | <type       (unsigned 0,2)> | compute histogram of grayscale intensity; type is 0-linear, 2-log
+|                        |               |          | <print      (bool)>         | print histogram values to stdout (for external processing)
 | HistogramModify        | histMod       |        2 | <low        (unsigned)>     | histogram stretch values between low and high.
 |                        |               |          | <high       (unsigned)>     | 
 | Resize[^2]             | scale         |        1 | <0.5 or 2.0 (float)>        | double or halve the size of an image.
@@ -173,8 +174,9 @@ identify multiple ROI sections and parameters.
 |                        |               |          | <colBegin   (unsigned)>     | 
 |                        |               |          | <rows       (unsigned)>     | 
 |                        |               |          | <cols       (unsigned)>     | 
-| Histogram[^1][^3]      | histChan      |        2 | <type       (unsigned 0,2)> | compute histogram of the RGB channel intensity; type is 0-linear, 2-log
-|                        |               |          | <channel    (unsigned 0-2)> | 
+| Histogram[^1][^3]      | histChan      |        3 | <type       (unsigned 0,2)> | compute histogram of the RGB channel intensity; type is 0-linear, 2-log
+|                        |               |          | <channel    (unsigned 0-2)> |
+|                        |               |          | <print      (bool)>         | print histogram values to stdout (for external processing)
 | HistogramModify        | histMod       |        2 | <low        (unsigned)>     | histogram stretch all RGB values between low and high.
 |                        |               |          | <high       (unsigned)>     | 
 | HistogramModIntensity  | histModI      |        2 | <low        (unsigned)>     | histogram stretch intensity of color file between low and high.
