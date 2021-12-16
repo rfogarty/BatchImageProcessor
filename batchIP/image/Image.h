@@ -573,6 +573,8 @@ public:
 
    unsigned cols() const { return mElasticHalfWindowCols*2 + 1; }
 
+   // TODO: this doesn't seem to compensate for "elasticity" when the view is pushed
+   //       up against a corner or edge
    unsigned size() const { return rows() * cols(); }
 
    unsigned rowPosition() const { return mRowPos; }

@@ -5,6 +5,7 @@
  ************************************************************/
 
 #include "image/NetpbmImage.h"
+#include "image/OpenCVImageIO.h"
 #include "image/ImageOperation.h"
 #include "image/ImageActions.h"
 #include "image/RegionOfInterest.h"
@@ -32,13 +33,14 @@ ImageT readImage(const std::string& inputfile,const std::string& line,
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<types::is_grayscale<typename ImageT::pixel_type>::value,int>::type* = 0) {
-   if(!utility::endsWith(inputfile,".pgm")) {
-      std::stringstream ss;
-      ss << "ERROR: on line: " << line << "\n"
-         << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
-      throw std::invalid_argument(ss.str());
-   }
-   return io::readPGMFile<typename ImageT::pixel_type>(inputfile);
+   //if(!utility::endsWith(inputfile,".pgm")) {
+   //   std::stringstream ss;
+   //   ss << "ERROR: on line: " << line << "\n"
+   //      << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
+   //   throw std::invalid_argument(ss.str());
+   //}
+   //return io::readPGMFile<typename ImageT::pixel_type>(inputfile);
+   return io::readGrayscaleFile<typename ImageT::pixel_type>(inputfile);
 }
 
 template<typename ImageT>
@@ -49,13 +51,14 @@ ImageT readImage(const std::string& inputfile,const std::string& line,
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<types::is_rgba<typename ImageT::pixel_type>::value,int>::type* = 0) {
-   if(!utility::endsWith(inputfile,".ppm")) {
-      std::stringstream ss;
-      ss << "ERROR: on line: " << line << "\n"
-         << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
-      throw std::invalid_argument(ss.str());
-   }
-   return io::readPPMFile<typename ImageT::pixel_type>(inputfile);
+   //if(!utility::endsWith(inputfile,".ppm")) {
+   //   std::stringstream ss;
+   //   ss << "ERROR: on line: " << line << "\n"
+   //      << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
+   //   throw std::invalid_argument(ss.str());
+   //}
+   //return io::readPPMFile<typename ImageT::pixel_type>(inputfile);
+   return io::readColorFile<typename ImageT::pixel_type>(inputfile);
 }
 
 template<typename ImageT>

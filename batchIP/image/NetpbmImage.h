@@ -88,6 +88,8 @@ types::Image<PixelT> readPPMFile(const std::string& filename) {
       ImageTT image16(rows,cols);
       PixelReader<ImageTT>::readRGBPixels(image16,buffer,true);
 
+      // TODO: I thought I supported arbitrary bitdepths throughout, and processed with arbitrary precision
+      //       but it looks like a quantize down to 8 bits regardless of the precision of the source.
       image = image16;
    }
    else {

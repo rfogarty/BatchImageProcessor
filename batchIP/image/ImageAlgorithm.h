@@ -758,13 +758,14 @@ public:
    SmoothX(const ImageViewT& imageView,unsigned windowSize) :
       mBoundingView(imageView),
       mElasticView(mBoundingView.elastic_view(1,windowSize)),
-      // Initialize mAccumulator with element 0,0
+      // Initialize mAccumulator with element 0,0 - why wouldn't we add all samples to the accumulator?
       mAccumulator(mElasticView.pixel(0,0).namedColor.gray),
       mSubtractor(mAccumulator),
       mAdder(mAccumulator)
    {}
 
    value_type average() {
+      // TODO: shouldn't this compensate on boundaries by a reduced view size?
       return static_cast<value_type>(checkValue<PixelT>(static_cast<AccumulatorVariableT>((double) mAccumulator / mElasticView.size())));
    }
 
