@@ -1,9 +1,15 @@
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 #include "image/Image.h"
 #include "image/Pixel.h"
 #include "image/PixelReader.h"
 #include "image/PixelWriter.h"
 #include "cppTools/Platform.h"
 #include <opencv2/imgcodecs.hpp>
+#include <string>
+#include <sstream>
+#include <stdexcept>
 
 
 namespace batchIP {
@@ -180,4 +186,6 @@ types::Image<PixelT> readGrayscaleFile(const std::string& filename) {
 
 } // namespace io
 } // namespace batchIP
+
+#pragma GCC diagnostic pop
 

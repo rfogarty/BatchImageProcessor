@@ -4,6 +4,9 @@
 INCLUDES = -I. -I/usr/local/include $(shell pkg-config --cflags opencv4)
 # pkg-config
 LIBS = $(shell pkg-config --libs opencv4)
+LIBS += $(shell pkg-config --libs libjpeg)
+LIBS += $(shell pkg-config --libs libpng)
+LIBS += $(shell pkg-config --libs libtiff-4)
 
 # compiler
 CC = g++
@@ -21,7 +24,7 @@ CPP_STD = -std=c++17
 CPP_OPT_LEVEL = -O2 -march=native -DNDEBUG
 
 # warnings: always set to most Draconian...
-CPP_WARNINGS = -Wall -Wpedantic -Werror
+CPP_WARNINGS = -Wall -Wpedantic -Wno-deprecated-declarations -Werror
 
 # enable AddressSanetizer
 CPP_ADD_SAN =

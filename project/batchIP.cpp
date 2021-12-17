@@ -6,6 +6,7 @@
 
 #include "image/NetpbmImage.h"
 #include "image/OpenCVImageIO.h"
+#include "image/GILImageIO.h"
 #include "image/ImageOperation.h"
 #include "image/ImageActions.h"
 #include "image/RegionOfInterest.h"
@@ -124,6 +125,29 @@ void process(const std::string& inputfile,
    }
 }
 
+bool isGrayscaleOperation(const std::string& operation) {
+   return(
+           (operation == "hist")                || 
+           (operation == "histEQCV")            || 
+           (operation == "thresholdEQCV")       || 
+           (operation == "scale")               || 
+           (operation == "binarize")            || 
+           (operation == "optBinarize")         || 
+           (operation == "otsuBinarize")        || 
+           (operation == "otsuBinarizeCV")      || 
+           (operation == "binarizeDT")          || 
+           (operation == "uniformSmooth")       || 
+           (operation == "edgeGradient")        || 
+           (operation == "edgeGradientClipped") || 
+           (operation == "edgeDetect")          || 
+           (operation == "orientedEdgeGradient")||
+           (operation == "orientedEdgeDetect")  || 
+           (operation == "edgeSobelCV")         || 
+           (operation == "edgeCannyCV")         || 
+           (operation == "qrDecodeCV")
+         );
+}
+
 void parseAndRunOperation(const std::string& line) {
 
    std::stringstream ss;
@@ -157,7 +181,8 @@ void parseAndRunOperation(const std::string& line) {
 
    using namespace ::batchIP::operation;
    
-   if(utility::endsWith(inputfile,".pgm")) {
+   if(isGrayscaleOperation(operation) ||
+      io::isImageGrayscale(inputfile)) {
 
       typedef types::GrayAlphaPixel<uint8_t> PixelT;
       typedef types::Image<PixelT> ImageT;
@@ -207,7 +232,7 @@ void parseAndRunOperation(const std::string& line) {
          std::cerr << "ERROR: processing operation: " << e.what() << std::endl;
       }
    }
-   else if(utility::endsWith(inputfile,".ppm")) {
+   else {
 
       typedef types::RGBAPixel<uint8_t> PixelT;
       typedef types::Image<PixelT> ImageT;
@@ -245,10 +270,6 @@ void parseAndRunOperation(const std::string& line) {
       catch(const std::exception& e) {
          std::cerr << "ERROR: processing operation: " << e.what() << std::endl;
       }
-   }
-   else {
-       std::cerr << "ERROR: on line: " << line << "\n"
-                 << "ERROR: unknown input file type" << std::endl;
    }
 }
 
