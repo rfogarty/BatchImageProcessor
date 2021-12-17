@@ -70,13 +70,14 @@ void saveImage(const ImageT& image, const std::string& outputfile,const std::str
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<types::is_grayscale<typename ImageT::pixel_type>::value,int>::type* = 0) {
-   if(!utility::endsWith(outputfile,".pgm")) {
-      std::stringstream ss;
-      ss << "ERROR: on line: " << line << "\n"
-         << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
-      throw std::invalid_argument(ss.str());
-   }
-   io::writePGMFile<ImageT::pixel_type::GRAY_CHANNEL>(outputfile,image);
+   //if(!utility::endsWith(outputfile,".pgm")) {
+   //   std::stringstream ss;
+   //   ss << "ERROR: on line: " << line << "\n"
+   //      << "ERROR: outputfile is expected to be .pgm (grayscale)" << std::endl;
+   //   throw std::invalid_argument(ss.str());
+   //}
+   //io::writePGMFile<ImageT::pixel_type::GRAY_CHANNEL>(outputfile,image);
+   io::writeGrayscaleFile<ImageT::pixel_type::GRAY_CHANNEL>(outputfile,image);
 }
 
 template<typename ImageT>
@@ -87,13 +88,14 @@ void saveImage(const ImageT& image, const std::string& outputfile,const std::str
          // matching function given its arguments. Note, SFINAE techniques are incompatible with 
          // deduction so can't be applied to in parameter directly.                              
          typename std::enable_if<types::is_rgba<typename ImageT::pixel_type>::value,int>::type* = 0) {
-   if(!utility::endsWith(outputfile,".ppm")) {
-      std::stringstream ss;
-      ss << "ERROR: on line: " << line << "\n"
-         << "ERROR: outputfile is expected to be .ppm (color)" << std::endl;
-      throw std::invalid_argument(ss.str());
-   }
-   io::writePPMFile(outputfile,image);
+   //if(!utility::endsWith(outputfile,".ppm")) {
+   //   std::stringstream ss;
+   //   ss << "ERROR: on line: " << line << "\n"
+   //      << "ERROR: outputfile is expected to be .ppm (color)" << std::endl;
+   //   throw std::invalid_argument(ss.str());
+   //}
+   //io::writePPMFile(outputfile,image);
+   io::writeColorFile(outputfile,image);
 }
 
 
