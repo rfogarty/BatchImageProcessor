@@ -1,7 +1,7 @@
 
 
 # include directories
-INCLUDES = -I. -I/usr/local/include $(shell pkg-config --cflags opencv4)
+INCLUDES = -I. $(shell pkg-config --cflags libtiff-4) $(shell pkg-config --cflags opencv4) -I/usr/local/include 
 # pkg-config
 LIBS = $(shell pkg-config --libs opencv4)
 LIBS += $(shell pkg-config --libs libjpeg)
